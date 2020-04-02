@@ -1,0 +1,1 @@
+# zabbix-ldap-sync-bash
