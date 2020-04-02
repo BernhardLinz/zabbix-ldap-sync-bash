@@ -2,7 +2,7 @@
 #############################################################################################################
 # Script Name ...: zabbix-ldap-sync.sh
 # Version .......: V1.0
-# Date ..........: 30.03.2020
+# Date ..........: 01.04.2020
 # Description....: Synchronise Members of a Actice Directory Group with Zabbix via API
 #                  User wich are removed will be deactivated
 # Args ..........: 
@@ -10,100 +10,360 @@
 # Email Business : Bernhard.Linz@datagroup.de
 # Email Private  : Bernhard@znil.de
 #############################################################################################################
-#   _____             __ _                       _   _             
-#  / ____|           / _(_)                     | | (_)            
-# | |     ___  _ __ | |_ _  __ _ _   _ _ __ __ _| |_ _  ___  _ __  
-# | |    / _ \| '_ \|  _| |/ _` | | | | '__/ _` | __| |/ _ \| '_ \ 
-# | |___| (_) | | | | | | | (_| | |_| | | | (_| | |_| | (_) | | | |
-#  \_____\___/|_| |_|_| |_|\__, |\__,_|_|  \__,_|\__|_|\___/|_| |_|
-#                           __/ |                                  
-#                          |___/                                   
-# Configuration LDAP-Connection (Tested LDAPS with Windows Server 2019)
-LDAP_Source_URL="ldaps://10.100.12.51"
-LDAP_Bind_User_DN="CN=ldapSearch,OU=3.Funktionsbenutzer,DC=znil,DC=local"
-LDAP_Bind_User_Password="bier2017"
-LDAP_SearchBase="DC=znil,DC=local"
-LDAP_Groupname_ZabbixSuperAdmin_for_Sync="Zabbix-Admins"
-LDAP_Ignore_SSL_Certificate="true"
-
-# Configuration Zabbix API Connection (Tested Zabbix 4.4)
-#ZABBIX_API_URL="http://localhost/zabbix/api_jsonrpc.php"
-ZABBIX_API_URL="http://localhost/api_jsonrpc.php"
-ZABBIX_API_Username="zbxapi"
-ZABBIX_API_Password="2015zbxapi2015"
-ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync="LDAP-SuperAdmin"
-ZABBIX_Disabled_User_Group="Disabled"
-
-# Zabbix User type for new created Users:
-# 1 - (default) Zabbix user;
-# 2 - Zabbix admin;
-# 3 - Zabbix super admin.
-ZABBIX_Default_User_Type=1
-
-# Zabbix Media Type Id
-# At new Installation:
-# 1 - Email
-# 2 - Jabber
-# 3 - SMS
-ZABBIX_MediaTypeID="1"
-
-ZABBIX_MediaTypeID="4204200000000001"
+# Variables
+Script_Version="V1.0 (2020-04-01)"
+# Colors for printf and echo
+DEFAULT_FOREGROUND=39
+RED=31
+GREEN=32
+YELLOW=33
+BLUE=34
+MAGENTA=35
+CYAN=36
+LIGHTRED=91
+LIGHTGREEN=92
+LIGHTYELLOW=93
+LIGHTBLUE=94
+LIGHTMAGENTA=95
+LIGHTCYAN=96
 
 #############################################################################################################
+#  ______                _   _                 
+# |  ____|              | | (_)                
+# | |__ _   _ _ __   ___| |_ _  ___  _ __  ___ 
+# |  __| | | | '_ \ / __| __| |/ _ \| '_ \/ __|
+# | |  | |_| | | | | (__| |_| | (_) | | | \__ \
+# |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
+#                                              
 #############################################################################################################
+# Print_Error ### START Function #####################################################################
+Print_Error () {
+    # $1 = Message
+    echo
+    echo -e "+- \e[91mERROR: \e[39m------------------------------------------------------------"
+    printf "$1"
+    echo
+    echo "+---------------------------------------------------------------------"
+}
+# Print_Error ### END Function #####################################################################
+# Print_Status_Text ### START Function #####################################################################
+Print_Status_Text () {
+    if [ "$b_silent" = "false" ]; then
+        printf "%-.70s" "${1} ......................................................................"
+    fi
+}
+# Print_Status_Text ### ENDE Function #####################################################################
+# Print_Status_Done ### START Function #####################################################################
+Print_Status_Done () {
+    # RED = 31
+    # GREEN = 32
+    if [ "$b_silent" = "false" ]; then
+        local status_text="${1:-done}"
+        local status_color="${2:-32}"
+        printf " \x1b["$status_color"m%s\e[m" "$status_text"
+        echo
+    fi
+}
+# Print_Status_Done ### ENDE Function #####################################################################
+# Print_Verbose_Text ### START Function #####################################################################
+Print_Verbose_Text () {
+    if [ "$b_verbose" = "true" ]; then
+        printf "%-.69s: %s\n" "${1} ......................................................................" "${2}"
+    fi
+}
+# Print_Verbose_Text ### ENDE Function #####################################################################
+# Check_Prerequisites ### START Function #####################################################################
+Check_Prerequisites () {
+    # $1 = name of command
+    # $2 = name of Package for Ubuntu/Debian
+    # $3 = name of Package for CentOS/Red Hat
+    if ! type "$1" >/dev/null 2>&1; then
+        echo
+        echo -e "+- \e[91mERROR: Missing Command \e[39m--------------------------------------------"
+        echo -e "| \e[36m$1\e[39m is not installed!"
+        echo "| try:"
+        echo "| apt install $2"
+        echo "| yum install $3"
+        echo "+---------------------------------------------------------------------"
+        exit 1
+    fi
+}
+# Check_Prerequisites ### END Function #####################################################################
+# Translate_ldapsearch_exitcode ### START Function #####################################################################
+Translate_ldapsearch_exitcode () {
+    case $1 in
+        0) printf "0: SUCCESS";;
+        1) printf "1: LDAP_OPERATIONS_ERROR";;
+        2) printf "2: LDAP_PROTOCOL_ERROR";;
+        3) printf "3: LDAP_TIMELIMIT_EXCEEDED";;
+        4) printf "4: LDAP_SIZELIMIT_EXCEEDED";;
+        7) printf "7: LDAP_AUTH_METHOD_NOT_SUPPORTED";;
+        8) printf "8: LDAP_STRONG_AUTH_REQUIRED";;
+        11) printf "11: LDAP_ADMINLIMIT_EXCEEDED";;
+        13) printf "13: LDAP_CONFIDENTIALITY_REQUIRED";;
+        16) printf "14: LDAP_NO_SUCH_ATTRIBUTE";;
+        17) printf "18: LDAP_INAPPROPRIATE_MATCHING";;
+        32) printf "32: LDAP_NO_SUCH_OBJECT";;
+        34) printf "34: LDAP_INVALID_DN_SYNTAX";;
+        48) printf "48: LDAP_INAPPROPRIATE_AUTH";;
+        49) printf "49: LDAP_INVALID_CREDENTIALS";;
+        50) printf "50: LDAP_INSUFFICIENT_ACCESS";;
+        51) printf "51: LDAP_BUSY";;
+        52) printf "52: LDAP_UNAVAILABLE";;
+        255) printf "255: LDAP Can't contact LDAP server";;
+        *) printf "$1: unkown error";;
+    esac
+    echo " (for more details: https://ldapwiki.com/wiki/LDAP%20Result%20Codes)"
+}
+# Translate_ldapsearch_exitcode ### END Function #####################################################################
+# Zabbix_Logout ### START Function #####################################################################
+Zabbix_Logout () {
+    Print_Status_Text "Logout Zabbix API"
+    if [ "$b_verbose" = "true" ]; then 
+        Print_Status_Done "checking" $LIGHTCYAN
+        printf 'curl -k -s -X POST -H "Content-Type:application/json" -d '
+        printf "'"
+        printf '{"jsonrpc": "2.0","method":"user.logout","params":[],"id":42,"'"$ZABBIX_authentication_token"'"}'
+        printf "'"
+        echo " $ZABBIX_API_URL"
+    fi
+    myJSON=$(curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"user.logout","params":[],"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL)
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "Logout Zabbix API"; fi
+    Print_Status_Done "done" $GREEN
+}
+# Zabbix_Logout ### START Function ##################################################################################################################################################################################
+#   _____ _             _               
+#  / ____| |           | |              
+# | (___ | |_ __ _ _ __| |_ _   _ _ __  
+#  \___ \| __/ _` | '__| __| | | | '_ \ 
+#  ____) | || (_| | |  | |_| |_| | |_) |
+# |_____/ \__\__,_|_|   \__|\__,_| .__/ 
+#                                | |    
+#                                |_|    
 #############################################################################################################
-#############################################################################################################
-#############################################################################################################
-#############################################################################################################
-#############################################################################################################
-#############################################################################################################
-#   _____ _               _                                          _     _ _            
-#  / ____| |             | |                                        (_)   (_) |           
-# | |    | |__   ___  ___| | __  _ __  _ __ ___ _ __ ___  __ _ _   _ _ ___ _| |_ ___  ___ 
-# | |    | '_ \ / _ \/ __| |/ / | '_ \| '__/ _ \ '__/ _ \/ _` | | | | / __| | __/ _ \/ __|
-# | |____| | | |  __/ (__|   <  | |_) | | |  __/ | |  __/ (_| | |_| | \__ \ | ||  __/\__ \
-#  \_____|_| |_|\___|\___|_|\_\ | .__/|_|  \___|_|  \___|\__, |\__,_|_|___/_|\__\___||___/
-#                               | |                         | |                           
-#                               |_|                         |_|                           
-# ldapsearch installed?
-if ! type "ldapsearch" > /dev/null; then
-    echo "+- ERROR -----------------------"
-    echo "| ldapsearch is not installed!"
-    echo "| try:"
-    echo "| apt install ldap-utils"
-    echo "| yum install openldap-clients"
-    echo "+-------------------------------"
+# Check Commandline Arguments
+Config_File="<notset>"
+b_Unknown_Parameter="false"
+b_showpasswords="false"
+b_silent="false"
+b_verbose="false"
+while [[ $# -gt 0 ]]; do
+    current_parameter="$1"
+    case $current_parameter in
+        -c|-C|--config)
+            Config_File="$2"
+            shift # past -c / --config
+            shift # past value
+            ;;
+        -p|-P|--ShowPassword)
+            # Passwords will be displayed in Errors and in Verbose mode
+            b_showpasswords="true"
+            shift # past argument
+            ;;
+        -s|-S|--silent)
+            # be quiet! only errors will be displayed
+            b_silent="true"
+            shift # past argument
+            ;;
+        -v|-V|--verbose)
+            # show some extra information
+            b_verbose="true"
+            shift # past argument
+            ;;
+        *)  # Catch all other
+            echo -e "\e[91mUnknown Parameter:\e[39m $1"
+            # next parameter will display help and exit script after the loop
+            b_Unknown_Parameter="true"
+            shift # past argument
+            ;;
+    esac
+done
+if [ "$b_Unknown_Parameter" = "true" ]; then
+    # ToDo: Create Help text
     exit 1
 fi
-# curl installed?
-if ! type "curl" > /dev/null; then
-    echo "+- ERROR -----------------------"
-    echo "| curl is not installed!"
-    echo "| try:"
-    echo "| apt install curl"
-    echo "| yum install curl"
-    echo "+-------------------------------"
-    exit 1
+#############################################################################################################
+if [ "$b_silent" = "false" ]; then
+    echo "---------------------------------------------------------------------------"
+    echo "zabbix-ldap-sync.sh (Version $Script_Version) startup"
 fi
-# sed installed?
-if ! type "sed" > /dev/null; then
-    echo "+- ERROR -----------------------"
-    echo "| sed is not installed!"
-    echo "| try:"
-    echo "| apt install sed"
-    echo "| yum install sed"
-    echo "+-------------------------------"
-    exit 1
+#############################################################################################################
+# Testing for all needed commands (normaly only ldapsearch have to be installed manualy)
+Print_Status_Text "Checking prerequisites"
+Check_Prerequisites "ldapsearch" "ldap-utils" "openldap-clients"
+Check_Prerequisites "curl" "curl" "curl"
+Check_Prerequisites "sed" "sed" "sed"
+Check_Prerequisites "dirname" "coreutils" "coreutils"
+Check_Prerequisites "readlink" "coreutils" "coreutils"
+Print_Status_Done "done" $GREEN
+#############################################################################################################
+#  _____                _    _____             __ _                       _   _             
+# |  __ \              | |  / ____|           / _(_)                     | | (_)            
+# | |__) |___  __ _  __| | | |     ___  _ __ | |_ _  __ _ _   _ _ __ __ _| |_ _  ___  _ __  
+# |  _  // _ \/ _` |/ _` | | |    / _ \| '_ \|  _| |/ _` | | | | '__/ _` | __| |/ _ \| '_ \ 
+# | | \ \  __/ (_| | (_| | | |___| (_) | | | | | | | (_| | |_| | | | (_| | |_| | (_) | | | |
+# |_|  \_\___|\__,_|\__,_|  \_____\___/|_| |_|_| |_|\__, |\__,_|_|  \__,_|\__|_|\___/|_| |_|
+#                                                    __/ |                                  
+#                                                   |___/                                   
+Print_Status_Text "Searching config file"
+if [ "$Config_File" = "<notset>" ]; then
+    # Get the current path of this running script - long solution wich is also working with symlinks
+    This_Script_Bash_Source="${BASH_SOURCE[0]}"
+    while [ -h "$This_Script_Bash_Source" ]; do # resolve $This_Script_Bash_Source until the file is no longer a symlink
+        This_Script_Path="$( cd -P "$( dirname "$This_Script_Bash_Source" )" >/dev/null 2>&1 && pwd )"
+        This_Script_Bash_Source="$(readlink "$This_Script_Bash_Source")"
+        [[ $This_Script_Bash_Source != /* ]] && This_Script_Bash_Source="$This_Script_Path/$This_Script_Bash_Source" # if $This_Script_Bash_Source was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+    done
+    This_Script_Path="$( cd -P "$( dirname "$This_Script_Bash_Source" )" >/dev/null 2>&1 && pwd )"
+    # Special case for programming - my own config file, excluded from .git
+    if test -f "$This_Script_Path/config-znil.sh"; then
+        Config_File="$This_Script_Path/config-znil.sh"
+    else
+        Config_File="$This_Script_Path/config.sh"
+    fi
 fi
-# printf installed?
-if ! type "printf" > /dev/null; then
-    echo "+- ERROR -----------------------"
-    echo "| printf is not installed!"
-    echo "| try:"
-    echo "| apt install sed"
-    echo "| yum install sed"
-    echo "+-------------------------------"
+# Normal test for the file now
+if ! test -f "$Config_File"; then
+    Print_Status_Done "Error" $RED
+    Print_Error "$Config_File not found"
     exit 1
+else
+    Print_Status_Done "done" $GREEN
+fi
+# File exist, read it now
+Print_Status_Text 'Reading "'$Config_File'"'
+source $Config_File
+Print_Status_Done "done" $GREEN
+Print_Status_Text "Check all needed Settings"
+# if [ -z ${var+x} ]; then echo "var is unset"; else echo "var is set to '$var'"; fi
+if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+####################################################################################################
+if ! [ -z ${LDAP_Source_URL+x} ]; then Print_Verbose_Text "LDAP_Source_URL" "${LDAP_Source_URL}"; else Print_Error "Missing LDAP_Source_URL"; fi
+####################################################################################################
+if ! [ -z ${LDAP_Ignore_SSL_Certificate+x} ]; then
+    Print_Verbose_Text "LDAP_Ignore_SSL_Certificate" "${LDAP_Ignore_SSL_Certificate}"
+else
+    LDAP_Ignore_SSL_Certificate="true"
+    Print_Verbose_Text "LDAP_Ignore_SSL_Certificate (using Default Value)" "${LDAP_Ignore_SSL_Certificate}"
+fi
+####################################################################################################
+if ! [ -z ${LDAP_Bind_User_DN+x} ]; then Print_Verbose_Text "LDAP_Bind_User_DN" "${LDAP_Bind_User_DN}"; else Print_Error "Missing LDAP_Bind_User_DN"; fi
+####################################################################################################
+if [ -z ${LDAP_Bind_User_Password+x} ]; then 
+    Print_Error "Missing LDAP_Bind_User_Password"
+else
+    if [ "$b_showpasswords" = "true" ]; then
+        Print_Verbose_Text "LDAP_Bind_User_Password" "${LDAP_Bind_User_Password}";
+    else
+        Print_Verbose_Text "LDAP_Bind_User_Password" "${LDAP_Bind_User_Password:0:3}***************"
+    fi
+fi
+####################################################################################################
+if ! [ -z ${LDAP_SearchBase+x} ]; then Print_Verbose_Text "LDAP_SearchBase" "${LDAP_SearchBase}"; else Print_Error "Missing LDAP_SearchBase"; fi
+####################################################################################################
+if ! [ -z ${LDAP_Groupname_ZabbixSuperAdmin_for_Sync+x} ]; then
+    Print_Verbose_Text "LDAP_Groupname_ZabbixSuperAdmin_for_Sync" "${LDAP_Groupname_ZabbixSuperAdmin_for_Sync}"
+else
+    LDAP_Groupname_ZabbixSuperAdmin_for_Sync="skip"
+    Print_Verbose_Text "LDAP_Groupname_ZabbixSuperAdmin_for_Sync" "skip sync"
+fi
+if [ "$LDAP_Groupname_ZabbixSuperAdmin_for_Sync" = "skip" ]; then Print_Verbose_Text "LDAP_Groupname_ZabbixSuperAdmin_for_Sync" "skip sync"; fi
+####################################################################################################
+if ! [ -z ${ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync+x} ]; then
+    Print_Verbose_Text "ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync" "${ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync}"
+else
+    ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync="skip"
+    Print_Verbose_Text "ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync" "skip sync"
+fi
+if [ "$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync" = "skip" ]; then Print_Verbose_Text "ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync" "skip sync"; fi
+####################################################################################################
+if ! [ -z ${LDAP_Groupname_ZabbixAdmin_for_Sync+x} ]; then
+    Print_Verbose_Text "LDAP_Groupname_ZabbixAdmin_for_Sync" "${LDAP_Groupname_ZabbixAdmin_for_Sync}"
+else
+    LDAP_Groupname_ZabbixAdmin_for_Sync="skip"
+    Print_Verbose_Text "LDAP_Groupname_ZabbixAdmin_for_Sync" "skip sync"
+fi
+if [ "$LDAP_Groupname_ZabbixAdmin_for_Sync" = "skip" ]; then Print_Verbose_Text "LDAP_Groupname_ZabbixAdmin_for_Sync" "skip sync"; fi
+####################################################################################################
+if ! [ -z ${ZABBIX_Groupname_ZabbixAdmin_for_Sync+x} ]; then
+    Print_Verbose_Text "ZABBIX_Groupname_ZabbixAdmin_for_Sync" "${ZABBIX_Groupname_ZabbixAdmin_for_Sync}"
+else
+    ZABBIX_Groupname_ZabbixAdmin_for_Sync="skip"
+    Print_Verbose_Text "ZABBIX_Groupname_ZabbixAdmin_for_Sync" "skip sync"
+fi
+if [ "$ZABBIX_Groupname_ZabbixAdmin_for_Sync" = "skip" ]; then Print_Verbose_Text "ZABBIX_Groupname_ZabbixAdmin_for_Sync" "skip sync"; fi
+####################################################################################################
+if ! [ -z ${LDAP_Groupname_ZabbixUser_for_Sync+x} ]; then
+    Print_Verbose_Text "LDAP_Groupname_ZabbixUser_for_Sync" "${LDAP_Groupname_ZabbixUser_for_Sync}"
+else
+    LDAP_Groupname_ZabbixUser_for_Sync="skip"
+    Print_Verbose_Text "LDAP_Groupname_ZabbixUser_for_Sync" "skip sync"
+fi
+if [ "$LDAP_Groupname_ZabbixUser_for_Sync" = "skip" ]; then Print_Verbose_Text "LDAP_Groupname_ZabbixUser_for_Sync" "skip sync"; fi
+####################################################################################################
+if ! [ -z ${ZABBIX_Groupname_ZabbixUser_for_Sync+x} ]; then
+    Print_Verbose_Text "ZABBIX_Groupname_ZabbixUser_for_Sync" "${ZABBIX_Groupname_ZabbixUser_for_Sync}"
+else
+    ZABBIX_Groupname_ZabbixUser_for_Sync="skip"
+    Print_Verbose_Text "ZABBIX_Groupname_ZabbixUser_for_Sync" "skip sync"
+fi
+if [ "$ZABBIX_Groupname_ZabbixUser_for_Sync" = "skip" ]; then Print_Verbose_Text "ZABBIX_Groupname_ZabbixUser_for_Sync" "skip sync"; fi
+####################################################################################################
+if ! [ -z ${ZABBIX_Disabled_User_Group+x} ]; then
+    Print_Verbose_Text "ZABBIX_Disabled_User_Group" "${ZABBIX_Disabled_User_Group}"
+else
+    ZABBIX_Disabled_User_Group="Disabled"
+    Print_Verbose_Text "ZABBIX_Disabled_User_Group (using Default Value)" "${ZABBIX_Disabled_User_Group}"
+fi
+####################################################################################################
+if ! [ -z ${ZABBIX_API_URL+x} ]; then Print_Verbose_Text "ZABBIX_API_URL" "${ZABBIX_API_URL}"; else Print_Error "Missing ZABBIX_API_URL"; fi
+####################################################################################################
+if ! [ -z ${ZABBIX_API_User+x} ]; then Print_Verbose_Text "ZABBIX_API_User" "${ZABBIX_API_User}"; else Print_Error "Missing ZABBIX_API_User"; fi
+####################################################################################################
+####################################################################################################
+if [ -z ${ZABBIX_API_Password+x} ]; then 
+    Print_Error "Missing ZABBIX_API_Password"
+else
+    if [ "$b_showpasswords" = "true" ]; then
+        Print_Verbose_Text "ZABBIX_API_Password" "${ZABBIX_API_Password}";
+    else
+        Print_Verbose_Text "ZABBIX_API_Password" "${ZABBIX_API_Password:0:3}***************";
+    fi
+fi
+####################################################################################################
+if ! [ -z ${ZABBIX_UserType_User+x} ]; then
+    Print_Verbose_Text "ZABBIX_UserType_User" "${ZABBIX_UserType_User}"
+else
+    ZABBIX_UserType_User=1
+    Print_Verbose_Text "ZABBIX_UserType_User (using Default Value)" "${ZABBIX_UserType_User}"
+fi
+####################################################################################################
+if ! [ -z ${ZABBIX_UserType_Admin+x} ]; then
+    Print_Verbose_Text "ZABBIX_UserType_Admin" "${ZABBIX_UserType_Admin}"
+else
+    ZABBIX_UserType_Admin=1
+    Print_Verbose_Text "ZABBIX_UserType_Admin (using Default Value)" "${ZABBIX_UserType_Admin}"
+fi
+####################################################################################################
+if ! [ -z ${ZABBIX_UserType_SuperAdmin+x} ]; then
+    Print_Verbose_Text "ZABBIX_UserType_SuperAdmin" "${ZABBIX_UserType_SuperAdmin}"
+else
+    ZABBIX_UserType_SuperAdmin=1
+    Print_Verbose_Text "ZABBIX_UserType_SuperAdmin (using Default Value)" "${ZABBIX_UserType_SuperAdmin}"
+fi
+####################################################################################################
+if ! [ -z ${ZABBIX_MediaTypeID+x} ]; then
+    Print_Verbose_Text "ZABBIX_MediaTypeID" "${ZABBIX_MediaTypeID}"
+else
+    ZABBIX_MediaTypeID=1
+    Print_Verbose_Text "ZABBIX_MediaTypeID (using Default Value)" "${ZABBIX_MediaTypeID}"
+fi
+####################################################################################################
+if [ "$b_verbose" = "false" ]; then
+    Print_Status_Done "done" $GREEN
+else
+    Print_Status_Text "Check all needed Settings"
+    Print_Status_Done "done" $GREEN
 fi
 
 #############################################################################################################
@@ -118,148 +378,178 @@ fi
 #
 declare -a LDAP_ARRAY_Members_RAW           # Raw Data from ldapsearch
 declare -a LDAP_ARRAY_Members_DN            # Distinguished names extracted from LDAP_ARRAY_Members_RAW
-echo
-echo "STEP 1: Getting all Members from Active Directory / LDAP Group"
-echo "--------------------------------------------------------------"
-echo "Group Name ......: $LDAP_Groupname_ZabbixSuperAdmin_for_Sync"
-echo "LDAP Server .....: $LDAP_Source_URL"
-echo "LDAP User .......: $LDAP_Bind_User_DN"
-echo "LDAP Search Base : $LDAP_SearchBase"
-echo "--------------------------------------------------------------"
+Print_Status_Text "STEP 1: Getting all Members from Active Directory / LDAP Group"
+if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+if [ "$b_verbose" = "true" ]; then
+    echo
+    echo "STEP 1: Getting all Members from Active Directory / LDAP Group"
+    echo "--------------------------------------------------------------"
+    echo "Group Name ......: $LDAP_Groupname_ZabbixSuperAdmin_for_Sync"
+    echo "LDAP Server .....: $LDAP_Source_URL"
+    echo "LDAP User .......: $LDAP_Bind_User_DN"
+    echo "LDAP Search Base : $LDAP_SearchBase"
+    echo "--------------------------------------------------------------"
+    echo "running ldapsearch:"
+fi
 if [ LDAP_Ignore_SSL_Certificate = "false" ]; then
     # normal ldapsearch call
+    if [ "$b_verbose" = "true" ]; then
+        if [ "$b_showpasswords" = "true" ]; then
+            echo 'ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn="'$LDAP_Groupname_ZabbixSuperAdmin_for_Sync'"))"'
+        else
+            echo 'ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "***********" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn="'$LDAP_Groupname_ZabbixSuperAdmin_for_Sync'"))"'
+        fi
+    fi
+    # yes, ldapsearch is called twice - first time without grep to catch the exitcode, 2. time to catch the content
+    tempvar=`ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_ZabbixSuperAdmin_for_Sync))" o member`
+    ldapsearch_exitcode="$?"
+    if [ "$b_verbose" = "true" ]; then echo "ldapsearch_exitcode: $ldapsearch_exitcode"; fi
     tempvar=`ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_ZabbixSuperAdmin_for_Sync))" o member | grep member:`
 else
     # ignore SSL ldapsearch
+    if [ "$b_verbose" = "true" ]; then
+        if [ "$b_showpasswords" = "true" ]; then
+            echo 'LDAPTLS_REQCERT=never ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn='$LDAP_Groupname_ZabbixSuperAdmin_for_Sync'))" o member'
+        else
+            echo 'LDAPTLS_REQCERT=never ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "***********" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn='$LDAP_Groupname_ZabbixSuperAdmin_for_Sync'))" o member'
+        fi
+    fi
+    # yes, ldapsearch is called twice - first time without grep to catch the exitcode, 2. time to catch the content
+    tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_ZabbixSuperAdmin_for_Sync))" o member`
+    ldapsearch_exitcode="$?"
+    if [ "$b_verbose" = "true" ]; then echo "ldapsearch_exitcode: $ldapsearch_exitcode"; fi
     tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_ZabbixSuperAdmin_for_Sync))" o member | grep member:`
 fi
-LDAP_ARRAY_Members_RAW=($tempvar) # Split the raw output into an array
-LDAP_ARRAY_Members_DN=()
-for (( i=0; i < ${#LDAP_ARRAY_Members_RAW[*]}; i++ )); do
-    # Search for the word "member:" in Array - the next value is the DN of a Member
-    if [ "${LDAP_ARRAY_Members_RAW[$i]:0:7}" = "member:" ]; then
-        i=$(($i + 1))
-        LDAP_ARRAY_Members_DN+=("${LDAP_ARRAY_Members_RAW[$i]}") # add new Item to the end of the array
-    else
-        # Ok, no "member:" found and the Item was not skipped by i=i+1 - must still belong to the previous Item, which was separated by a space
-        last_item_of_array=${#LDAP_ARRAY_Members_DN[*]} # get the Number of Items in the array
-        last_item_of_array=$(($last_item_of_array - 1)) # get the Index of the last one (0 is the first index but the number of Items would be 1)
-        LDAP_ARRAY_Members_DN[$last_item_of_array]+=" ${LDAP_ARRAY_Members_RAW[$i]}" # without ( ) -> replace the Item-Value, add no new Item to the array
-    fi
-done
-if [ "${#LDAP_ARRAY_Members_DN[*]}" -eq 0 ]; then
-    # No Members in Group or an error with ldapsearch
-    echo "+- ERROR -----------------------"
-    echo " No Members in Group or an Error with ldapsearch"
-    echo " try the following commands manual for testing:"
-    echo 'ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn='$LDAP_Groupname_ZabbixSuperAdmin_for_Sync'))"'
-    echo "With ignore SSL Certificate:"
-    echo 'LDAPTLS_REQCERT=never ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn='$LDAP_Groupname_ZabbixSuperAdmin_for_Sync'))"'
-    
-    echo "+-------------------------------"
-    exit 1
+if [ "$b_verbose" = "true" ]; then 
+    echo 'Result ldapsearch (with "grep member:" : '"$tempvar"
+    echo "Exitcode ldapsearch: $(Translate_ldapsearch_exitcode $ldapsearch_exitcode)"
+fi
+# only continue if ldapsearch was succesfull
+if [ "$ldapsearch_exitcode" -eq 0 ];then
+    LDAP_ARRAY_Members_RAW=($tempvar) # Split the raw output into an array
+    LDAP_ARRAY_Members_DN=()
+    for (( i=0; i < ${#LDAP_ARRAY_Members_RAW[*]}; i++ )); do
+        # Search for the word "member:" in Array - the next value is the DN of a Member
+        if [ "${LDAP_ARRAY_Members_RAW[$i]:0:7}" = "member:" ]; then
+            i=$(($i + 1))
+            LDAP_ARRAY_Members_DN+=("${LDAP_ARRAY_Members_RAW[$i]}") # add new Item to the end of the array
+        else
+            # Ok, no "member:" found and the Item was not skipped by i=i+1 - must still belong to the previous Item, which was separated by a space
+            last_item_of_array=${#LDAP_ARRAY_Members_DN[*]} # get the Number of Items in the array
+            last_item_of_array=$(($last_item_of_array - 1)) # get the Index of the last one (0 is the first index but the number of Items would be 1)
+            LDAP_ARRAY_Members_DN[$last_item_of_array]+=" ${LDAP_ARRAY_Members_RAW[$i]}" # without ( ) -> replace the Item-Value, add no new Item to the array
+        fi
+    done
 else
+    Print_Error "Exitcode ldapsearch not zero: $(Translate_ldapsearch_exitcode $ldapsearch_exitcode)\nTry -v -p and test command by hand"
+    exit 1
+fi
+Print_Status_Done "done" $GREEN
+if [ "$b_verbose" = "true" ]; then
     echo 'Got "Distinguished Name" for '${#LDAP_ARRAY_Members_DN[*]}' members:'
     for (( i=0; i < ${#LDAP_ARRAY_Members_DN[*]}; i++ )); do
         echo "$i: ${LDAP_ARRAY_Members_DN[$i]}"
     done
     echo "--------------------------------------------------------------"
 fi
-printf "Query sAMAccountName, sn, givenName and primary Email-Address "
 declare -a LDAP_ARRAY_Members_sAMAccountName
 declare -a LDAP_ARRAY_Members_Surname
 declare -a LDAP_ARRAY_Members_Givenname
 declare -a LDAP_ARRAY_Members_Email
-LDAP_ARRAY_Members_sAMAccountName=()
-LDAP_ARRAY_Members_Surname=()
-LDAP_ARRAY_Members_Givenname=()
-LDAP_ARRAY_Members_Email=()
-# Maybe a User have no Surname, Givenname and/or Email - but the will be always a sAMAccountName
-# the checks are used for testing this. Set to false for the first run of the loop
-b_check_sAMAccountName="false"
-b_check_Surname="false"
-b_check_Givenname="false"
-b_check_Email="false"
-
-for (( i=0; i < ${#LDAP_ARRAY_Members_DN[*]}; i++ )); do
-    # When the Loop start again we have to for all values. All arrays-size must be equal!
-    # First run of loop will be skipped because b_check_sAMAccountName is false
-    if [ "$b_check_sAMAccountName" = "true" ]; then
-        if [ "$b_check_Surname" = "false" ]; then
-            LDAP_ARRAY_Members_Surname+=("   ")
-        fi
-        if [ "$b_check_Givenname" = "false" ]; then
-            LDAP_ARRAY_Members_Givenname+=("   ")
-        fi
-        if [ "$b_check_Email" = "false" ]; then
-            LDAP_ARRAY_Members_Email+=("   ")
-        fi
-
-    fi
-    if [ LDAP_Ignore_SSL_Certificate = "false" ]; then
-        # sed replace all ": " and "new line" to "|"
-        tempvar=`ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "${LDAP_ARRAY_Members_DN[$i]}" o sAMAccountName o sn o givenName o mail | grep "^sn: \|^givenName: \|^sAMAccountName: \|^mail:" | sed 's/$/|/' | sed 's/: /|/'`
-    else
-        # sed replace all ": " and "new line" to "|"
-        tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "${LDAP_ARRAY_Members_DN[$i]}" o sAMAccountName o sn o givenName o mail | grep "^sn: \|^givenName: \|^sAMAccountName: \|^mail:" | sed 's/$/|/' | sed 's/: /|/'`
-    fi
-    # Remove all "New Line" (yes, again,) but keep all Spaces
-    tempvar=$(echo "|${tempvar//[$'\t\r\n']}|")
-    IFS=$'|' # | is set as delimiter
-    LDAP_ARRAY_Members_RAW=($tempvar)
-    IFS=' ' # space is set as delimiter
+# Only catch the rest if there members in the group
+if [ "${#LDAP_ARRAY_Members_DN[*]}" -gt 0 ]; then
+    Print_Status_Text "Query sAMAccountName, sn, givenName and primary Email-Address"
+    LDAP_ARRAY_Members_sAMAccountName=()
+    LDAP_ARRAY_Members_Surname=()
+    LDAP_ARRAY_Members_Givenname=()
+    LDAP_ARRAY_Members_Email=()
+    # Maybe a User have no Surname, Givenname and/or Email - but the will be always a sAMAccountName
+    # the checks are used for testing this. Set to false for the first run of the loop
     b_check_sAMAccountName="false"
     b_check_Surname="false"
     b_check_Givenname="false"
     b_check_Email="false"
-    for (( k=0; k < ${#LDAP_ARRAY_Members_RAW[*]}; k++ )); do
-        # Check sAMAccountName
-        if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "sAMAccountName" ]; then
-            k=$(($k + 1))
-            # echo "add SAM: ${LDAP_ARRAY_Members_RAW[$k]}"
-            printf "."
-            LDAP_ARRAY_Members_sAMAccountName+=("${LDAP_ARRAY_Members_RAW[$k]}")
-            b_check_sAMAccountName="true"
+    
+    for (( i=0; i < ${#LDAP_ARRAY_Members_DN[*]}; i++ )); do
+        # When the Loop start again we have to for all values. All arrays-size must be equal!
+        # First run of loop will be skipped because b_check_sAMAccountName is false
+        if [ "$b_check_sAMAccountName" = "true" ]; then
+            if [ "$b_check_Surname" = "false" ]; then
+                LDAP_ARRAY_Members_Surname+=("   ")
+            fi
+            if [ "$b_check_Givenname" = "false" ]; then
+                LDAP_ARRAY_Members_Givenname+=("   ")
+            fi
+            if [ "$b_check_Email" = "false" ]; then
+                LDAP_ARRAY_Members_Email+=("   ")
+            fi
         fi
-        if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "sn" ]; then
-            k=$(($k + 1))
-            # echo "add SN: ${LDAP_ARRAY_Members_RAW[$k]}"
-            printf "."
-            LDAP_ARRAY_Members_Surname+=("${LDAP_ARRAY_Members_RAW[$k]}")
-            b_check_Surname="true"
+        if [ LDAP_Ignore_SSL_Certificate = "false" ]; then
+            # sed replace all ": " and "new line" to "|"
+            tempvar=`ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "${LDAP_ARRAY_Members_DN[$i]}" o sAMAccountName o sn o givenName o mail | grep "^sn: \|^givenName: \|^sAMAccountName: \|^mail:" | sed 's/$/|/' | sed 's/: /|/'`
+        else
+            # sed replace all ": " and "new line" to "|"
+            tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "${LDAP_ARRAY_Members_DN[$i]}" o sAMAccountName o sn o givenName o mail | grep "^sn: \|^givenName: \|^sAMAccountName: \|^mail:" | sed 's/$/|/' | sed 's/: /|/'`
         fi
-        if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "givenName" ]; then
-            k=$(($k + 1))
-            # echo "add givenName: ${LDAP_ARRAY_Members_RAW[$k]}"
-            printf "."
-            LDAP_ARRAY_Members_Givenname+=("${LDAP_ARRAY_Members_RAW[$k]}")
-            b_check_Givenname="true"
-        fi
-        if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "mail" ]; then
-            k=$(($k + 1))
-            # echo "add Email: ${LDAP_ARRAY_Members_RAW[$k]}"
-            printf "."
-            LDAP_ARRAY_Members_Email+=("${LDAP_ARRAY_Members_RAW[$k]}")
-            b_check_Email="true"
-        fi
+        # Remove all "New Line" (yes, again,) but keep all Spaces
+        tempvar=$(echo "|${tempvar//[$'\t\r\n']}|")
+        IFS=$'|' # | is set as delimiter
+        LDAP_ARRAY_Members_RAW=($tempvar)
+        IFS=' ' # space is set as delimiter
+        b_check_sAMAccountName="false"
+        b_check_Surname="false"
+        b_check_Givenname="false"
+        b_check_Email="false"
+        for (( k=0; k < ${#LDAP_ARRAY_Members_RAW[*]}; k++ )); do
+            # Check sAMAccountName
+            if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "sAMAccountName" ]; then
+                k=$(($k + 1))
+                # echo "add SAM: ${LDAP_ARRAY_Members_RAW[$k]}"
+                printf "."
+                LDAP_ARRAY_Members_sAMAccountName+=("${LDAP_ARRAY_Members_RAW[$k]}")
+                b_check_sAMAccountName="true"
+            fi
+            if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "sn" ]; then
+                k=$(($k + 1))
+                # echo "add SN: ${LDAP_ARRAY_Members_RAW[$k]}"
+                printf "."
+                LDAP_ARRAY_Members_Surname+=("${LDAP_ARRAY_Members_RAW[$k]}")
+                b_check_Surname="true"
+            fi
+            if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "givenName" ]; then
+                k=$(($k + 1))
+                # echo "add givenName: ${LDAP_ARRAY_Members_RAW[$k]}"
+                printf "."
+                LDAP_ARRAY_Members_Givenname+=("${LDAP_ARRAY_Members_RAW[$k]}")
+                b_check_Givenname="true"
+            fi
+            if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "mail" ]; then
+                k=$(($k + 1))
+                # echo "add Email: ${LDAP_ARRAY_Members_RAW[$k]}"
+                printf "."
+                LDAP_ARRAY_Members_Email+=("${LDAP_ARRAY_Members_RAW[$k]}")
+                b_check_Email="true"
+            fi
+        done
     done
-done
-echo " done"
+    Print_Status_Done "done" $GREEN
+fi
 unset LDAP_ARRAY_Members_RAW
-echo "------------------------------------------------------------------------------------------------"
-echo "Result from STEP 1: Getting all Members from Active Directory / LDAP Group $LDAP_Groupname_ZabbixSuperAdmin_for_Sync"
-echo "----+----------------------+----------------------+----------------------+----------------------"
-printf "%-3s | %-20s | %-20s | %-20s | %-20s" "No." "sAMAccountName" "Surname" "Givenname" "Email"
-printf "\n"
-echo "----+----------------------+----------------------+----------------------+----------------------"
-for (( i=0; i < ${#LDAP_ARRAY_Members_sAMAccountName[*]}; i++ )); do
-    printf "%-3s | %-20s | %-20s | %-20s | %-20s" "$i" "${LDAP_ARRAY_Members_sAMAccountName[$i]}" "${LDAP_ARRAY_Members_Surname[$i]}" "${LDAP_ARRAY_Members_Givenname[$i]}" "${LDAP_ARRAY_Members_Email[$i]}"
+if [ "$b_verbose" = "true" ]; then
+    echo "------------------------------------------------------------------------------------------------"
+    echo "Result from STEP 1: Getting all Members from Active Directory / LDAP Group $LDAP_Groupname_ZabbixSuperAdmin_for_Sync"
+    echo "----+----------------------+----------------------+----------------------+----------------------"
+    printf "%-3s | %-20s | %-20s | %-20s | %-20s" "No." "sAMAccountName" "Surname" "Givenname" "Email"
     printf "\n"
-done
-echo "------------------------------------------------------------------------------------------------"
-echo
-echo
-echo
+    echo "----+----------------------+----------------------+----------------------+----------------------"
+    for (( i=0; i < ${#LDAP_ARRAY_Members_sAMAccountName[*]}; i++ )); do
+        printf "%-3s | %-20s | %-20s | %-20s | %-20s" "$i" "${LDAP_ARRAY_Members_sAMAccountName[$i]}" "${LDAP_ARRAY_Members_Surname[$i]}" "${LDAP_ARRAY_Members_Givenname[$i]}" "${LDAP_ARRAY_Members_Email[$i]}"
+        printf "\n"
+    done
+    echo "------------------------------------------------------------------------------------------------"
+    echo
+    echo
+fi
 
 #############################################################################################################
 #  ______     _     _     _        _                 _       
@@ -271,21 +561,34 @@ echo
 #                                               __/ |        
 #                                              |___/     
 # Login Zabbix API and catch the authentication token
-ZABBIX_authentication_token=$(curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.login","params":{"user":"'$ZABBIX_API_Username'","password":"'$ZABBIX_API_Password'"},"id":42}' $ZABBIX_API_URL | cut -d'"' -f8)
-#echo Anmeldetoken: $ZABBIX_authentication_token
-if [ "${#ZABBIX_authentication_token}" -ne 32 ]; then
-    # Token have 32 Chars - something went wrong
-    echo "+- ERROR -----------------------"
-    echo " Login Zabbix API failed!"
-    echo " try the following commands manual for testing:"
+b_Zabbix_is_logged_in="false"
+Print_Status_Text "Login at Zabbix API"
+if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+if [ "$b_verbose" = "true" ]; then
     printf 'curl -k -s -X POST -H "Content-Type:application/json" -d '
     printf "'"
-    printf '{"jsonrpc": "2.0","method":"user.login","params":{"user":"'$ZABBIX_API_Username'","password":"'$ZABBIX_API_Password'"},"id":42}'
+    if [ "$b_showpasswords" = "true" ]; then
+        printf '{"jsonrpc": "2.0","method":"user.login","params":{"user":"'$ZABBIX_API_User'","password":"'$ZABBIX_API_Password'"},"id":42}'
+    else
+        printf '{"jsonrpc": "2.0","method":"user.login","params":{"user":"'$ZABBIX_API_User'","password":"********"},"id":42}'
+    fi
     printf "'"
     echo " $ZABBIX_API_URL"
-    echo "+-------------------------------"
-    exit 1
 fi
+ZABBIX_authentication_token=$(curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.login","params":{"user":"'$ZABBIX_API_User'","password":"'$ZABBIX_API_Password'"},"id":42}' $ZABBIX_API_URL | cut -d'"' -f8)
+Print_Verbose_Text "Authentification token" "$ZABBIX_authentication_token"
+if [ "${#ZABBIX_authentication_token}" -ne 32 ]; then
+    # Token must have 32 Chars - something went wrong
+    Print_Status_Done "failed" $RED
+    Print_Error "Login Zabbix API failed\nTry -v -p and test command by hand"
+    exit 1
+else
+    b_Zabbix_is_logged_in="true"
+fi
+if [ "$b_verbose" = "true" ]; then Print_Status_Text "Login at Zabbix API"; fi
+Print_Status_Done "done" $GREEN
+Zabbix_Logout
+exit 1
 #############################################################################################################
 #   ____                          ______     _     _     _         _____                       
 #  / __ \                        |___  /    | |   | |   (_)       / ____|                      
@@ -301,7 +604,7 @@ echo "STEP 2: Get Members of Zabbix-LDAP Group"
 echo "--------------------------------------------------------------"
 echo "Zabbix LDAP Group Name .........: $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
 echo "Zabbix Disabled User Group Name : $ZABBIX_Disabled_User_Group"
-echo "Zabbix API URL .................: $ZABBIX_API_Username"
+echo "Zabbix API URL .................: $ZABBIX_API_User"
 echo "Zabbix API User ................: $LDAP_Bind_User_DN"
 echo "--------------------------------------------------------------"
 #############################################################################################################
@@ -569,29 +872,29 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
                 tempvar=""
                 case "$create_combination" in
                     "OOO")  # No Surname, Givenname or Email
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_Default_User_Type'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "OOX")  # Email, but no Surname or Givenname
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_Default_User_Type'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             
                             ;;
                     "OXO")  # Givenname, but no Surname or Email
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_Default_User_Type'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "OXX")  # Givenname and Email, no Surname
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_Default_User_Type'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "XOO")  # Surname, but no Givenname or Email
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_Default_User_Type'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "XOX")  # Surname and Email, but no Givenname
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_Default_User_Type'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "XXO")  # Surname and Givenname, but no Email
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_Default_User_Type'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "XXX")  # Surname, Givenname and Email
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_Default_User_Type'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                 esac
                 #echo "$tempvar"
