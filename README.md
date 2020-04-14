@@ -52,21 +52,21 @@ The other needed programs are
 which should be already installed
 
 ### 3. Create Zabbix-User for API Access
-It should be a non LDAP user with **Frontend acccess** `internal` (defined by Group Membership).
-The User must have the **User type** `Zabbix Super Admin` for creating new users and changing group memberships.
-Also avoid special chars in username and password.
-In the examples i am using the username `zabbixapiuser`
+It should be a non LDAP user with **Frontend acccess** `internal` (defined by Group Membership)<br>
+The User must have the **User type** `Zabbix Super Admin` for creating new users and changing group memberships.<br>
+Also avoid special chars in username and password.<br>
+In the examples i am using the username `zabbixapiuser`<br>
 
 ### 4. Create Zabbix Target Groups
-At least 2 groups are required:
-**Target Group for Users:**
-This Group must have **Frontend access** `LDAP `
+At least 2 groups are required:<br>
+**Target Group for Users:**<br>
+This Group must have **Frontend access** `LDAP`<br>
 and should be enabled. 
-In the examples i am using the groupname`Zabbix-Super-Admin`
-**Target Group for Disabled Users:**
-The build-in Group **Disabled** can be used.
-Or create a new group which is **not** enabled (remove checkox) and **Frontend access** `Disabled`
-In the examples i am using the groupname`LDAP-Disabled`
+In the examples i am using the groupname`Zabbix-Super-Admin`<br>
+**Target Group for Disabled Users:**<br>
+The build-in Group **Disabled** can be used.<br>
+Or create a new group which is **not** enabled (remove checkox) and **Frontend access** `Disabled`<br>
+In the examples i am using the groupname`LDAP-Disabled`<br>
 
 ### 5. Check Zabbix LDAP-Settings
 Check the Settings for LDAP:
