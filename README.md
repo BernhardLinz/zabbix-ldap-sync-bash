@@ -22,7 +22,7 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
  - After creating get the ***distinguished name*** of this user. You can query the name on a doamin controller with
     
     `dsquery user -samid <username>`
- Output should something like
+Output should something like
     
     `CN=ldapSearch,OU=MyUsers,DC=exampledomain,DC=local`
  where ***ldapSearch*** is the example-user
