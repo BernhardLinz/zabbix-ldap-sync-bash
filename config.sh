@@ -21,7 +21,7 @@ LDAP_Ignore_SSL_Certificate="true"
 # Bind user for accessing,
 # to get the Distinguished Name of the User run the following command on a domain controller (replace ldapsearch with your Username):
 # dsquery user -samid ldapSearch
-LDAP_Bind_User_DN="CN=ldapSearch,OU=MyUsers,DC=mydomain,DC=local"
+LDAP_Bind_User_DN="CN=ldapSearch,OU=MyUsers,DC=exampledomain,DC=local"
 # the passwort og the user (should be marked as never changed)
 # Please avoid special chars which were use in bash like $`´'"\/<>()[]^
 LDAP_Bind_User_Password="9qA3XB1r##Xr27c1HPpq"
@@ -29,18 +29,18 @@ LDAP_Bind_User_Password="9qA3XB1r##Xr27c1HPpq"
 LDAP_SearchBase="DC=exampledomain,DC=local"
 
 # Name of Groups in LDAP (Active-Directory) and in Zabbix for Sync with Zabbix
-ZABBIX_Groupname_for_Sync="Zabbix-Super-Admin"
+LDAP_Groupname_for_Sync="Zabbix-Super-Admin"
 ZABBIX_Groupname_for_Sync="LDAP-SuperAdmin"
 
 # When you remove an user from the LDAP-Group, the user will moved in this group which is "Not enabled" = Disabled and Frontend access is "disabled"
-ZABBIX_Disabled_User_Group="Disabled"
+ZABBIX_Disabled_User_Group="LDAP-Disabled"
 
 
 # Configuration Zabbix API Connection (Tested with Zabbix 4.4)
 # if https:// is used, per default ssl checks will be ignored
 #ZABBIX_API_URL="http://localhost/zabbix/api_jsonrpc.php"
 ZABBIX_API_URL="http://localhost/api_jsonrpc.php"
-ZABBIX_API_User="API-User"
+ZABBIX_API_User="zabbixapiuser"
 ZABBIX_API_Password="strongpassword73#"
 
 # Zabbix User type for new created Users:
