@@ -2,7 +2,7 @@
 #############################################################################################################
 # Script Name ...: zabbix-ldap-sync.sh
 # Version .......: V1.0
-# Date ..........: 01.04.2020
+# Date ..........: 09.04.2020
 # Description....: Synchronise Members of a Actice Directory Group with Zabbix via API
 #                  User wich are removed will be deactivated
 # Args ..........: 
@@ -128,8 +128,10 @@ Zabbix_Logout () {
         echo " $ZABBIX_API_URL"
     fi
     myJSON=$(curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"user.logout","params":[],"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL)
+    if [ "$b_verbose" = "true" ]; then echo "Answer from API: $myJSON"; fi
     if [ "$b_verbose" = "true" ]; then Print_Status_Text "Logout Zabbix API"; fi
     Print_Status_Done "done" $GREEN
+    b_Zabbix_is_logged_in="false"
 }
 # Zabbix_Logout ### START Function ##################################################################################################################################################################################
 #   _____ _             _               
@@ -182,6 +184,9 @@ if [ "$b_Unknown_Parameter" = "true" ]; then
     # ToDo: Create Help text
     exit 1
 fi
+#############################################################################################################
+# Clear Screen
+clear
 #############################################################################################################
 if [ "$b_silent" = "false" ]; then
     echo "---------------------------------------------------------------------------"
@@ -444,6 +449,7 @@ else
     Print_Error "Exitcode ldapsearch not zero: $(Translate_ldapsearch_exitcode $ldapsearch_exitcode)\nTry -v -p and test command by hand"
     exit 1
 fi
+if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 1: Getting all Members from Active Directory / LDAP Group"; fi
 Print_Status_Done "done" $GREEN
 if [ "$b_verbose" = "true" ]; then
     echo 'Got "Distinguished Name" for '${#LDAP_ARRAY_Members_DN[*]}' members:'
@@ -452,17 +458,18 @@ if [ "$b_verbose" = "true" ]; then
     done
     echo "--------------------------------------------------------------"
 fi
+# Needed additional arrays
 declare -a LDAP_ARRAY_Members_sAMAccountName
 declare -a LDAP_ARRAY_Members_Surname
 declare -a LDAP_ARRAY_Members_Givenname
 declare -a LDAP_ARRAY_Members_Email
+LDAP_ARRAY_Members_sAMAccountName=()
+LDAP_ARRAY_Members_Surname=()
+LDAP_ARRAY_Members_Givenname=()
+LDAP_ARRAY_Members_Email=()
 # Only catch the rest if there members in the group
 if [ "${#LDAP_ARRAY_Members_DN[*]}" -gt 0 ]; then
     Print_Status_Text "Query sAMAccountName, sn, givenName and primary Email-Address"
-    LDAP_ARRAY_Members_sAMAccountName=()
-    LDAP_ARRAY_Members_Surname=()
-    LDAP_ARRAY_Members_Givenname=()
-    LDAP_ARRAY_Members_Email=()
     # Maybe a User have no Surname, Givenname and/or Email - but the will be always a sAMAccountName
     # the checks are used for testing this. Set to false for the first run of the loop
     b_check_sAMAccountName="false"
@@ -475,13 +482,13 @@ if [ "${#LDAP_ARRAY_Members_DN[*]}" -gt 0 ]; then
         # First run of loop will be skipped because b_check_sAMAccountName is false
         if [ "$b_check_sAMAccountName" = "true" ]; then
             if [ "$b_check_Surname" = "false" ]; then
-                LDAP_ARRAY_Members_Surname+=("   ")
+                LDAP_ARRAY_Members_Surname+=(" - ")
             fi
             if [ "$b_check_Givenname" = "false" ]; then
-                LDAP_ARRAY_Members_Givenname+=("   ")
+                LDAP_ARRAY_Members_Givenname+=(" - ")
             fi
             if [ "$b_check_Email" = "false" ]; then
-                LDAP_ARRAY_Members_Email+=("   ")
+                LDAP_ARRAY_Members_Email+=(" - ")
             fi
         fi
         if [ LDAP_Ignore_SSL_Certificate = "false" ]; then
@@ -505,33 +512,42 @@ if [ "${#LDAP_ARRAY_Members_DN[*]}" -gt 0 ]; then
             if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "sAMAccountName" ]; then
                 k=$(($k + 1))
                 # echo "add SAM: ${LDAP_ARRAY_Members_RAW[$k]}"
-                printf "."
                 LDAP_ARRAY_Members_sAMAccountName+=("${LDAP_ARRAY_Members_RAW[$k]}")
                 b_check_sAMAccountName="true"
             fi
             if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "sn" ]; then
                 k=$(($k + 1))
                 # echo "add SN: ${LDAP_ARRAY_Members_RAW[$k]}"
-                printf "."
                 LDAP_ARRAY_Members_Surname+=("${LDAP_ARRAY_Members_RAW[$k]}")
                 b_check_Surname="true"
             fi
             if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "givenName" ]; then
                 k=$(($k + 1))
                 # echo "add givenName: ${LDAP_ARRAY_Members_RAW[$k]}"
-                printf "."
                 LDAP_ARRAY_Members_Givenname+=("${LDAP_ARRAY_Members_RAW[$k]}")
                 b_check_Givenname="true"
             fi
             if [ "${LDAP_ARRAY_Members_RAW[$k]}" = "mail" ]; then
                 k=$(($k + 1))
                 # echo "add Email: ${LDAP_ARRAY_Members_RAW[$k]}"
-                printf "."
                 LDAP_ARRAY_Members_Email+=("${LDAP_ARRAY_Members_RAW[$k]}")
                 b_check_Email="true"
             fi
         done
     done
+    # If only one user is in group and some Values are missing ... we need a special treatment for this:
+    if [ "$b_check_sAMAccountName" = "true" ]; then
+        if [ "$b_check_Surname" = "false" ]; then
+            LDAP_ARRAY_Members_Surname+=(" - ")
+        fi
+        if [ "$b_check_Givenname" = "false" ]; then
+            LDAP_ARRAY_Members_Givenname+=(" - ")
+        fi
+        if [ "$b_check_Email" = "false" ]; then
+            LDAP_ARRAY_Members_Email+=(" - ")
+        fi
+    fi
+
     Print_Status_Done "done" $GREEN
 fi
 unset LDAP_ARRAY_Members_RAW
@@ -550,6 +566,8 @@ if [ "$b_verbose" = "true" ]; then
     echo
     echo
 fi
+
+
 
 #############################################################################################################
 #  ______     _     _     _        _                 _       
@@ -585,10 +603,12 @@ if [ "${#ZABBIX_authentication_token}" -ne 32 ]; then
 else
     b_Zabbix_is_logged_in="true"
 fi
-if [ "$b_verbose" = "true" ]; then Print_Status_Text "Login at Zabbix API"; fi
+Print_Verbose_Text "b_Zabbix_is_logged_in" "$b_Zabbix_is_logged_in"
+if [ "$b_verbose" = "true" ]; then
+    Print_Status_Text "Login at Zabbix API"
+fi
 Print_Status_Done "done" $GREEN
-Zabbix_Logout
-exit 1
+
 #############################################################################################################
 #   ____                          ______     _     _     _         _____                       
 #  / __ \                        |___  /    | |   | |   (_)       / ____|                      
@@ -599,20 +619,33 @@ exit 1
 #                          __/ |                                                        | |    
 #                         |___/                                                         |_|    
 # Get UserGrpIds and Members of existing LDAP-User Group in Zabbix
-echo
-echo "STEP 2: Get Members of Zabbix-LDAP Group"
-echo "--------------------------------------------------------------"
-echo "Zabbix LDAP Group Name .........: $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
-echo "Zabbix Disabled User Group Name : $ZABBIX_Disabled_User_Group"
-echo "Zabbix API URL .................: $ZABBIX_API_User"
-echo "Zabbix API User ................: $LDAP_Bind_User_DN"
-echo "--------------------------------------------------------------"
+Print_Status_Text "STEP 2: Get Members of Zabbix-LDAP Groups"
+Print_Status_Done "checking" $LIGHTCYAN
+if [ "$b_verbose" = "true" ]; then
+    echo
+    echo "STEP 2: Get Members of Zabbix-LDAP Group"
+    echo "--------------------------------------------------------------"
+    echo "Zabbix LDAP Group Name .........: $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
+    echo "Zabbix Disabled User Group Name : $ZABBIX_Disabled_User_Group"
+    echo "Zabbix API URL .................: $ZABBIX_API_User"
+    echo "Zabbix API User ................: $LDAP_Bind_User_DN"
+    echo "--------------------------------------------------------------"
+fi
 #############################################################################################################
 # Get UsrGrpIds
-printf "determine UsrGrpID of $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync ... "
+Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"'
+if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
 declare -a ZABBIX_ARRAY_usrgrpid_RAW
+if [ "$b_verbose" = "true" ]; then
+    printf 'curl -k -s -X POST -H "Content-Type:application/json"  -d '
+    printf "'"
+    printf '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"},"output":"extend","status":0},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+    printf "'"
+    printf " $ZABBIX_API_URL"
+fi
 tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"},"output":"extend","status":0},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
-#echo $tempvar
+if [ "$b_verbose" = "true" ]; then echo $tempvar; fi
+# The answer is an JSON - we split by the " into an array and search for the wanted values
 IFS='"' # " is set as delimiter
 ZABBIX_ARRAY_usrgrpid_RAW=($tempvar)
 IFS=' ' # space is set as delimiter
@@ -625,10 +658,14 @@ for (( i=0; i < ${#ZABBIX_ARRAY_usrgrpid_RAW[*]}; i++ )); do
         break
     fi
 done
-echo " done"
+Print_Verbose_Text "$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync" "$ZABBIX_LDAP_Group_UsrGrpId"
+if [ "$b_verbose" = "true" ]; then Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"'; fi
+Print_Status_Done "done" $GREEN
 tempvar=""
-printf "determine UsrGrpID of $ZABBIX_Disabled_User_Group ... "
+Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Disabled_User_Group'"'
+if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
 tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'$ZABBIX_Disabled_User_Group'"},"output":"extend","status":1},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+if [ "$b_verbose" = "true" ]; then echo $tempvar; fi
 IFS='"' # " is set as delimiter
 ZABBIX_ARRAY_usrgrpid_RAW=($tempvar)
 IFS=' ' # space is set as delimiter
@@ -639,19 +676,30 @@ for (( i=0; i < ${#ZABBIX_ARRAY_usrgrpid_RAW[*]}; i++ )); do
         break
     fi
 done
-echo " done"
+Print_Verbose_Text "$ZABBIX_Disabled_User_Group" "$ZABBIX_Disabled_Group_UsrGrpId"
+if [ "$b_verbose" = "true" ]; then Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Disabled_User_Group'"'; fi
+Print_Status_Done "done" $GREEN
 tempvar=""
 unset ZABBIX_ARRAY_usrgrpid_RAW
 #############################################################################################################
-# Get alias and userid of Zabbix Group Members
-printf "determine alias and userid of all Members of $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync "
+# Get alias and userid of the Zabbix Group Members
+Print_Status_Text 'determine alias and userid for Members of "'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"'
+if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+
 declare -a ZABBIX_ARRAY_LDAP_GroupMember_alias
 declare -a ZABBIX_ARRAY_LDAP_GroupMember_userid
 declare -a ZABBIX_ARRAY_LDAP_GroupMember_RAW
 ZABBIX_ARRAY_LDAP_GroupMember_alias=()
 ZABBIX_ARRAY_LDAP_GroupMember_userid=()
-
+if [ "$b_verbose" = "true" ]; then
+    printf 'curl -k -s -X POST -H "Content-Type:application/json"  -d '
+    printf "'"
+    printf '{"jsonrpc": "2.0","method":"user.get","params":{"usrgrpids":"'$ZABBIX_LDAP_Group_UsrGrpId'","output":["alias","userid"]},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+    printf "'"
+    printf " $ZABBIX_API_URL"
+fi
 tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"user.get","params":{"usrgrpids":"'$ZABBIX_LDAP_Group_UsrGrpId'","output":["alias","userid"]},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+if [ "$b_verbose" = "true" ]; then echo $tempvar; fi
 IFS='"' # " is set as delimiter
 ZABBIX_ARRAY_LDAP_GroupMember_RAW=($tempvar)
 IFS=' ' # space is set as delimiter
@@ -661,30 +709,33 @@ for (( i=0; i < ${#ZABBIX_ARRAY_LDAP_GroupMember_RAW[*]}; i++ )); do
     if [ "${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}" = "userid" ]; then
         i=$(($i + 2))
         ZABBIX_ARRAY_LDAP_GroupMember_userid+=("${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}")
-        printf "."
+        Print_Verbose_Text "Found UserId" "${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}"
+        #printf "."
     fi
     if [ "${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}" = "alias" ]; then
         i=$(($i + 2))
         ZABBIX_ARRAY_LDAP_GroupMember_alias+=("${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}")
-        printf "."
+        Print_Verbose_Text "Found Alias" "${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}"
+        #printf "."
     fi
 done
-echo " done!"
+if [ "$b_verbose" = "true" ]; then Print_Status_Text 'determine alias and userid for Members of "'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"'; fi
+Print_Status_Done "done" $GREEN
 unset ZABBIX_ARRAY_LDAP_GroupMember_RAW
-echo "------------------------------------------------------------------------------------------------"
-echo "Result from STEP 2: Get Members of Zabbix-LDAP Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
-echo "----+----------------------+----------------------+----------------------+----------------------"
-printf "%-3s | %-20s | %-20s | %-20s | %-20s" "No." "Alias" "UserId" " " " "
-printf "\n"
-echo "----+----------------------+----------------------+----------------------+----------------------"
-for (( i=0; i < ${#ZABBIX_ARRAY_LDAP_GroupMember_alias[*]}; i++ )); do
-    printf "%-3s | %-20s | %-20s | %-20s | %-20s" "$i" "${ZABBIX_ARRAY_LDAP_GroupMember_alias[$i]}" "${ZABBIX_ARRAY_LDAP_GroupMember_userid[$i]}" " " " "
+if [ "$b_verbose" = "true" ]; then
+    echo "------------------------------------------------------------------------------------------------"
+    echo "Result from STEP 2: Get Members of Zabbix-LDAP Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
+    echo "----+----------------------+----------------------+----------------------+----------------------"
+    printf "%-3s | %-20s | %-20s | %-20s | %-20s" "No." "Alias" "UserId" " " " "
     printf "\n"
-done
-echo "------------------------------------------------------------------------------------------------"
-echo
-echo
-echo
+    echo "----+----------------------+----------------------+----------------------+----------------------"
+    for (( i=0; i < ${#ZABBIX_ARRAY_LDAP_GroupMember_alias[*]}; i++ )); do
+        printf "%-3s | %-20s | %-20s | %-20s | %-20s" "$i" "${ZABBIX_ARRAY_LDAP_GroupMember_alias[$i]}" "${ZABBIX_ARRAY_LDAP_GroupMember_userid[$i]}" " " " "
+        printf "\n"
+    done
+    echo "------------------------------------------------------------------------------------------------"
+    echo
+fi
 #############################################################################################################
 #   _____                                        _____                           
 #  / ____|                                      / ____|                          
@@ -694,50 +745,63 @@ echo
 #  \_____\___/|_| |_| |_| .__/ \__,_|_|  \___|  \_____|_|  \___/ \__,_| .__/|___/
 #                       | |                                           | |        
 #                       |_|                                           |_|        
-echo
-echo "STEP 3: Compare Groups for changes"
-echo "--------------------------------------------------------------"
-echo "AD / LDAP Group Name ...........: $LDAP_Groupname_ZabbixSuperAdmin_for_Sync"
-echo "Zabbix LDAP Group Name .........: $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
-echo "--------------------------------------------------------------"
+Print_Status_Text "STEP 3: Compare Groups for changes"
+Print_Status_Done "checking" $LIGHTCYAN
+if [ "$b_verbose" = "true" ]; then
+    echo
+    echo "STEP 3: Compare Groups for changes"
+    echo "--------------------------------------------------------------"
+    echo "AD / LDAP Group Name ...........: $LDAP_Groupname_ZabbixSuperAdmin_for_Sync"
+    echo "Zabbix LDAP Group Name .........: $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
+    echo "--------------------------------------------------------------"
+fi
 b_Must_Sync_Users="false"
 # Check 1:
-printf "Check 1: Compare Number of Users ... "
-printf "should: ${#LDAP_ARRAY_Members_sAMAccountName[*]} ... "
-printf "Is: ${#ZABBIX_ARRAY_LDAP_GroupMember_alias[*]} ... "
+Print_Status_Text "Check 1: Number of Users LDAP"
+Print_Status_Done "${#LDAP_ARRAY_Members_sAMAccountName[*]}" $DEFAULT_FOREGROUND
+Print_Status_Text "Check 1: Number of Users Zabbix"
+Print_Status_Done "${#ZABBIX_ARRAY_LDAP_GroupMember_alias[*]}" $DEFAULT_FOREGROUND
+Print_Status_Text "Check 1: Number of Users"
 if [ "${#LDAP_ARRAY_Members_sAMAccountName[*]}" -eq "${#ZABBIX_ARRAY_LDAP_GroupMember_alias[*]}" ]; then
-    echo "equal!"
+    Print_Status_Done "equal" $GREEN
 else
-    echo "differently! Start synchronizing!"
+    Print_Status_Done "not equal" $RED
     b_Must_Sync_Users="true"
 fi
+
 # Check 2:
 if [ "$b_Must_Sync_Users" = "false" ]; then
     # make Compare case insensitive, save original settings
     orig_nocasematch=$(shopt -p nocasematch)
     shopt -s nocasematch
-    printf "Check 2: Compare Active Directory sAMAccountName with Zabbix Alias "
+    Print_Status_Text "Check 2: Compare Active Directory sAMAccountName with Zabbix Alias"
+    if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
     # Check every sAMAccountName and find a alias for it
     for (( i=0; i < ${#LDAP_ARRAY_Members_sAMAccountName[*]}; i++ )); do
         b_alias_was_found="false"
         for (( k=0; k < ${#ZABBIX_ARRAY_LDAP_GroupMember_alias[*]}; k++ )); do
             if [[ "${LDAP_ARRAY_Members_sAMAccountName[$i]}" == "${ZABBIX_ARRAY_LDAP_GroupMember_alias[$k]}" ]]; then
-                printf "."
+                # printf "."
+                Print_Verbose_Text "${LDAP_ARRAY_Members_sAMAccountName[$i]}" "found"
                 b_alias_was_found="true"
+                # if user have found the loop can be finished
                 break
             fi
         done
         if [ "$b_alias_was_found" = "false" ]; then
             b_Must_Sync_Users="true"
-            echo " ${LDAP_ARRAY_Members_sAMAccountName[$i]} not found! Start synchronizing!"
+            Print_Verbose_Text "${LDAP_ARRAY_Members_sAMAccountName[$i]}" "not found"
+            if [ "$b_verbose" = "true" ]; then Print_Status_Text "Check 2: Compare Active Directory sAMAccountName with Zabbix Alias"; fi
+            Print_Status_Done "mismatch" $RED
+            # one user was not found, we can exit the test, we must sync
             break
         fi
     done
     # restore original case sensitive/insenstive settings
     $orig_nocasematch
-    echo " done!"
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "Check 2: Compare Active Directory sAMAccountName with Zabbix Alias"; fi
+    if [ "$b_Must_Sync_Users" = "false" ]; then Print_Status_Done "done" $GREEN; fi
 fi
-
 
 #############################################################################################################
 #   _____                  _                     _     _             
@@ -749,9 +813,13 @@ fi
 #          __/ |                                                __/ |
 #         |___/                                                |___/ 
 if [ "$b_Must_Sync_Users" = "true" ]; then
-    echo
-    echo "--------------------------------------------------------------"
-    echo "STEP 4: Get all Zabbix Users with alias and userid"
+    Print_Status_Text "STEP 4: Get all Zabbix Users with alias and userid"
+    if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+    if [ "$b_verbose" = "true" ]; then
+        echo
+        echo "--------------------------------------------------------------"
+        echo "STEP 4: Get all Zabbix Users with alias and userid"
+    fi
     # get a List of all Zabbix Users to get the possible UserIds of new Users
     tempvar=""
     declare -a ZABBIX_ARRAY_AllUser_alias
@@ -759,11 +827,20 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
     declare -a ZABBIX_ARRAY_AllUser_RAW
     ZABBIX_ARRAY_AllUser_alias=()
     ZABBIX_ARRAY_AllUser_userid=()
+    if [ "$b_verbose" = "true" ]; then
+        printf 'curl -k -s -X POST -H "Content-Type:application/json"  -d '
+        printf "'"
+        printf '{"jsonrpc": "2.0","method":"user.get","params":{"output":["alias","userid"]},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+        printf "'"
+        echo $ZABBIX_API_URL
+    fi
     tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"user.get","params":{"output":["alias","userid"]},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+    if [ "$b_verbose" = "true" ]; then
+        echo $tempvar
+    fi
     IFS='"' # " is set as delimiter
     ZABBIX_ARRAY_AllUser_RAW=($tempvar)
     IFS=' ' # space is set as delimiter
-    printf "Processing ."
     for (( i=0; i < ${#ZABBIX_ARRAY_AllUser_RAW[*]}; i++ )); do
         # We assume that the UserId and Alias always come one after the other in any order, so the index of the two arrays should match
         if [ "${ZABBIX_ARRAY_AllUser_RAW[$i]}" = "userid" ]; then
@@ -777,25 +854,29 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
             printf "."
         fi
     done
-    echo " done!"
     unset ZABBIX_ARRAY_AllUser_RAW
-    echo "------------------------------------------------------------------------------------------------"
-    echo "Result from STEP 4: Get all Zabbix Users with alias and userid"
-    echo "----+----------------------+----------------------+----------------------+----------------------"
-    printf "%-3s | %-20s | %-20s | %-20s | %-20s" "No." "Alias" "UserId" " " " "
-    printf "\n"
-    echo "----+----------------------+----------------------+----------------------+----------------------"
-    for (( i=0; i < ${#ZABBIX_ARRAY_AllUser_alias[*]}; i++ )); do
-        printf "%-3s | %-20s | %-20s | %-20s | %-20s" "$i" "${ZABBIX_ARRAY_AllUser_alias[$i]}" "${ZABBIX_ARRAY_AllUser_userid[$i]}" " " " "
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 4: Get all Zabbix Users with alias and userid"; fi
+    Print_Status_Done "done" $GREEN
+    if [ "$b_verbose" = "true" ]; then
+        echo "------------------------------------------------------------------------------------------------"
+        echo "Result from STEP 4: Get all Zabbix Users with alias and userid"
+        echo "----+----------------------+----------------------+----------------------+----------------------"
+        printf "%-3s | %-20s | %-20s | %-20s | %-20s" "No." "Alias" "UserId" " " " "
         printf "\n"
-    done
-    echo "------------------------------------------------------------------------------------------------"
-    echo
-    echo
-    echo
-    echo
-    echo "--------------------------------------------------------------"
-    echo "STEP 5: Compare LDAP user with existing Zabbix User"
+        echo "----+----------------------+----------------------+----------------------+----------------------"
+        for (( i=0; i < ${#ZABBIX_ARRAY_AllUser_alias[*]}; i++ )); do
+            printf "%-3s | %-20s | %-20s | %-20s | %-20s" "$i" "${ZABBIX_ARRAY_AllUser_alias[$i]}" "${ZABBIX_ARRAY_AllUser_userid[$i]}" " " " "
+            printf "\n"
+        done
+        echo "------------------------------------------------------------------------------------------------"
+    fi
+    Print_Status_Text "STEP 5: Compare LDAP user with existing Zabbix User"
+    if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+    if [ "$b_verbose" = "true" ]; then
+        echo
+        echo "--------------------------------------------------------------"
+        echo "STEP 5: Compare LDAP user with existing Zabbix User"
+    fi
     # additional Array for Zabbix-UserId
     declare -a LDAP_ARRAY_Members_UserId
     LDAP_ARRAY_Members_UserId=()
@@ -805,11 +886,13 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
     # make Compare case insensitive, save original settings
     orig_nocasematch=$(shopt -p nocasematch)
     shopt -s nocasematch
+    i_CounterNewUsers=0
     for (( i=0; i < ${#LDAP_ARRAY_Members_sAMAccountName[*]}; i++ )); do
         b_we_have_a_winner="false"
         for (( k=0; k < ${#ZABBIX_ARRAY_AllUser_alias[*]}; k++ )); do
             if [[ "${LDAP_ARRAY_Members_sAMAccountName[$i]}" == "${ZABBIX_ARRAY_AllUser_alias[$k]}" ]]; then
                 LDAP_ARRAY_Members_UserId+=("${ZABBIX_ARRAY_AllUser_userid[$k]}")
+                Print_Verbose_Text "Found existing User: ${LDAP_ARRAY_Members_sAMAccountName[$i]}" "${ZABBIX_ARRAY_AllUser_alias[$k]}"
                 b_we_have_a_winner="true"
                 break
             fi
@@ -819,55 +902,70 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
             # User was not found - but we need an array item to have all array index identical and matched to each other
             # also mark this User to have to be created
             LDAP_ARRAY_Members_UserId+=("create-user")
+            Print_Verbose_Text "No Zabbix user found: ${LDAP_ARRAY_Members_sAMAccountName[$i]}" "will be created"
             b_have_to_create_new_user="true"
+            i_CounterNewUsers=$(($i_CounterNewUsers + 1))
         fi
     done
     # restore original case sensitive/insenstive settings
     $orig_nocasematch
-    echo "----------------------------------------------------------------------------------------------------------------------"
-    echo "Result from STEP 5: Compare LDAP user with existing Zabbix User"
-    echo "----+----------------------+----------------------+----------------------+--------------------------+-----------------"
-    printf "%-3s | %-20s | %-20s | %-20s | %-24s | %-20s" "No." "sAMAccountName" "Surname" "Givenname" "Zabbix-UserId" "Email-Address"
-    printf "\n"
-    echo "----+----------------------+----------------------+----------------------+--------------------------+-----------------"
-    for (( i=0; i < ${#LDAP_ARRAY_Members_sAMAccountName[*]}; i++ )); do
-        printf "%-3s | %-20s | %-20s | %-20s | %-24s | %-20s" "$i" "${LDAP_ARRAY_Members_sAMAccountName[$i]}" "${LDAP_ARRAY_Members_Surname[$i]}" "${LDAP_ARRAY_Members_Givenname[$i]}" "${LDAP_ARRAY_Members_UserId[$i]}" "${LDAP_ARRAY_Members_Email[$i]}"
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 5: Compare LDAP user with existing Zabbix User"; fi
+    if [ "$b_have_to_create_new_user" = "true" ]; then
+        Print_Status_Done "must create $i_CounterNewUsers new user" $RED
+    else
+        Print_Status_Done "done" $GREEN
+    fi
+    if [ "$b_verbose" = "true" ]; then
+        echo "----------------------------------------------------------------------------------------------------------------------"
+        echo "Result from STEP 5: Compare LDAP user with existing Zabbix User"
+        echo "----+----------------------+----------------------+----------------------+--------------------------+-----------------"
+        printf "%-3s | %-20s | %-20s | %-20s | %-24s | %-20s" "No." "sAMAccountName" "Surname" "Givenname" "Zabbix-UserId" "Email-Address"
         printf "\n"
-    done
-    echo "----------------------------------------------------------------------------------------------------------------------"
-    echo
-    echo
-    echo
+        echo "----+----------------------+----------------------+----------------------+--------------------------+-----------------"
+        for (( i=0; i < ${#LDAP_ARRAY_Members_sAMAccountName[*]}; i++ )); do
+            printf "%-3s | %-20s | %-20s | %-20s | %-24s | %-20s" "$i" "${LDAP_ARRAY_Members_sAMAccountName[$i]}" "${LDAP_ARRAY_Members_Surname[$i]}" "${LDAP_ARRAY_Members_Givenname[$i]}" "${LDAP_ARRAY_Members_UserId[$i]}" "${LDAP_ARRAY_Members_Email[$i]}"
+        printf "\n"
+        done
+        echo "----------------------------------------------------------------------------------------------------------------------"
+    fi
     #############################################################################################################
     if [ "$b_have_to_create_new_user" = "true" ]; then
-        echo "--------------------------------------------------------------"
-        echo "STEP 6: Create needed new Zabbix-User"
+        Print_Status_Text "STEP 6: Create needed $i_CounterNewUsers new Zabbix-User"
+        if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+        if [ "$b_verbose" = "true" ]; then
+            echo "--------------------------------------------------------------"
+            echo "STEP 6: Create needed $i_CounterNewUsers new Zabbix-User"
+        fi
         declare -a ZABBIX_ARRAY_New_User_RAW
         # Search for all User with UserId "create-user"
         for (( i=0; i < ${#LDAP_ARRAY_Members_sAMAccountName[*]}; i++ )); do
             if [ "${LDAP_ARRAY_Members_UserId[$i]}" = "create-user" ]; then
-                printf "Create new user ${LDAP_ARRAY_Members_sAMAccountName[$i]} ... "
+                # printf "Create new user ${LDAP_ARRAY_Members_sAMAccountName[$i]} ... "
                 tempSAM='"'"${LDAP_ARRAY_Members_sAMAccountName[$i]}"'"'
                 # Check the things we have
                 create_combination=""
-                if [ "${LDAP_ARRAY_Members_Surname[$i]}" != "   " ]; then
+                if [ "${LDAP_ARRAY_Members_Surname[$i]}" != " - " ]; then
                     create_combination+="X"
                     tempSURNAME='"'"${LDAP_ARRAY_Members_Surname[$i]}"'"'
+                    Print_Verbose_Text "tempSURNAME" "$tempSURNAME"
                 else
                     create_combination+="O"
                 fi
-                if [ "${LDAP_ARRAY_Members_Givenname[$i]}" != "   " ]; then
+                if [ "${LDAP_ARRAY_Members_Givenname[$i]}" != " - " ]; then
                     create_combination+="X"
                     tempNAME='"'"${LDAP_ARRAY_Members_Givenname[$i]}"'"'
+                    Print_Verbose_Text "tempNAME" "$tempNAME"
                 else
                     create_combination+="O"
                 fi
-                if [ "${LDAP_ARRAY_Members_Email[$i]}" != "   " ]; then
+                if [ "${LDAP_ARRAY_Members_Email[$i]}" != " - " ]; then
                     create_combination+="X"
                     tempEmail='"'"${LDAP_ARRAY_Members_Email[$i]}"'"'
+                    Print_Verbose_Text "tempEmail" "$tempEmail"
                 else
                     create_combination+="O"
                 fi
+                Print_Verbose_Text "Create Combination" "$create_combination"
                 # create_combination should be OOO, OOX, OXO, OXX, XOO, XOX, XXO or XXX
                 tempvar=""
                 case "$create_combination" in
@@ -897,7 +995,7 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
                             tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                 esac
-                #echo "$tempvar"
+                if [ "$b_verbose" = "true" ]; then echo "$tempvar"; fi
                 # Catch the new UserId from the answer
                 IFS='"' # " is set as delimiter
                 ZABBIX_ARRAY_New_User_RAW=($tempvar)
@@ -908,58 +1006,78 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
                         LDAP_ARRAY_Members_UserId[$i]="${ZABBIX_ARRAY_New_User_RAW[$k]}"
                     fi
                 done
-                echo " done (UserId: LDAP_ARRAY_Members_UserId[$i])"
+                Print_Verbose_Text "Created: ${LDAP_ARRAY_Members_sAMAccountName[$i]}" "LDAP_ARRAY_Members_UserId[$i]"
             fi
         done
-        echo "-------------------------------------------------------------------------------------------------------------"
-        echo "Result from STEP 6: Create needed new Zabbix-User"
-        echo "----+----------------------+----------------------+----------------------+--------------------------+-----------------"
-        printf "%-3s | %-20s | %-20s | %-20s | %-24s | %-20s" "No." "sAMAccountName" "Surname" "Givenname" "Zabbix-UserId" "Email-Address"
-        printf "\n"
-        echo "----+----------------------+----------------------+----------------------+--------------------------+-----------------"
-        for (( i=0; i < ${#LDAP_ARRAY_Members_sAMAccountName[*]}; i++ )); do
-            printf "%-3s | %-20s | %-20s | %-20s | %-24s | %-20s" "$i" "${LDAP_ARRAY_Members_sAMAccountName[$i]}" "${LDAP_ARRAY_Members_Surname[$i]}" "${LDAP_ARRAY_Members_Givenname[$i]}" "${LDAP_ARRAY_Members_UserId[$i]}" "${LDAP_ARRAY_Members_Email[$i]}"
+        if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 6: Create needed $i_CounterNewUsers new Zabbix-User"; fi
+        Print_Status_Done "done" $GREEN
+        if [ "$b_verbose" = "true" ]; then
+            echo "-------------------------------------------------------------------------------------------------------------"
+            echo "Result from STEP 6: Create needed new Zabbix-User"
+            echo "----+----------------------+----------------------+----------------------+--------------------------+-----------------"
+            printf "%-3s | %-20s | %-20s | %-20s | %-24s | %-20s" "No." "sAMAccountName" "Surname" "Givenname" "Zabbix-UserId" "Email-Address"
             printf "\n"
-        done
-        echo "----------------------------------------------------------------------------------------------------------------------"
-        echo
-        echo
-        echo
+            echo "----+----------------------+----------------------+----------------------+--------------------------+-----------------"
+            for (( i=0; i < ${#LDAP_ARRAY_Members_sAMAccountName[*]}; i++ )); do
+                printf "%-3s | %-20s | %-20s | %-20s | %-24s | %-20s" "$i" "${LDAP_ARRAY_Members_sAMAccountName[$i]}" "${LDAP_ARRAY_Members_Surname[$i]}" "${LDAP_ARRAY_Members_Givenname[$i]}" "${LDAP_ARRAY_Members_UserId[$i]}" "${LDAP_ARRAY_Members_Email[$i]}"
+                printf "\n"
+            done
+            echo "----------------------------------------------------------------------------------------------------------------------"
+        fi
     fi
     
     #############################################################################################################
-    echo "--------------------------------------------------------------"
-    echo "STEP 7: Replace Members of Group $ZABBIX_LDAP_Group"
-    printf "Create list of UserIds ..."
+    Print_Status_Text "STEP 7: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
+    if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+    if [ "$b_verbose" = "true" ]; then
+        echo "--------------------------------------------------------------"
+        echo "STEP 7: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
+    fi
     tempvar=""
     list_of_userids=""
     for (( i=0; i < ${#LDAP_ARRAY_Members_sAMAccountName[*]}; i++ )); do
         list_of_userids+='"'${LDAP_ARRAY_Members_UserId[$i]}'"'
         list_of_userids+=","
     done
-    list_of_userids=${list_of_userids::-1}
-    echo " done"
-    printf "Update Zabbix Group $ZABBIX_LDAP_Group via API (Replace) ... "
+    # maybe the list is empty! So we have to check
+    if [ "$list_of_userids" != "" ]; then list_of_userids=${list_of_userids::-1}; fi
+    if [ "$b_verbose" = "true" ]; then printf "Update Zabbix Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync via API (Replace)"; fi
+    if [ "$b_verbose" = "true" ]; then
+        printf 'curl -k -s -X POST -H "Content-Type:application/json"  -d '
+        printf "'"
+        printf '{"jsonrpc": "2.0","method":"usergroup.update","params":{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'","userids":['$list_of_userids']},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+        printf "' "
+        echo $ZABBIX_API_URL
+    fi
     tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"usergroup.update","params":{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'","userids":['$list_of_userids']},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
-    echo "done!"
-    echo
-    echo
-    echo
-    echo
+    if [ "$b_verbose" = "true" ]; then echo $tempvar; fi
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 7: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"; fi
+    Print_Status_Done "done" $GREEN
+    
     #############################################################################################################
     # 1. get a List of all User in the "Disabled User" group
     # 2. Remove all active user from this List
     # 3. Add all user wich was removed from LDAP-Group but was in the Zabbix-LDAP-Group found
     # 4. Update Members of Group "Disabled User" via Zabbix API
-    echo "--------------------------------------------------------------"
-    echo "STEP 8: Get List of all disabled user in Group $ZABBIX_Disabled_User_Group"
+    Print_Status_Text "STEP 8: Get List of all disabled user in Group $ZABBIX_Disabled_User_Group"
+    if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+    if [ "$b_verbose" = "true" ]; then
+        echo "--------------------------------------------------------------"
+        echo "STEP 8: Get List of all disabled user in Group $ZABBIX_Disabled_User_Group"
+    fi
     # 1. get a List of all User in the "Disabled User" group
-    printf "Fetching UserIds ... "
     declare -a ZABBIX_ARRAY_disabled_User_userid
     declare -a ZABBIX_ARRAY_disabled_User_RAW
     ZABBIX_ARRAY_disabled_User_userid=()
+    if [ "$b_verbose" = "true" ]; then
+        printf 'curl -k -s -X POST -H "Content-Type:application/json"  -d '
+        printf "'"
+        printf '{"jsonrpc": "2.0","method":"user.get","params":{"usrgrpids":"'$ZABBIX_Disabled_Group_UsrGrpId'","output":["userid"],"status":1},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+        printf "'"
+        echo $ZABBIX_API_URL
+    fi
     tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"user.get","params":{"usrgrpids":"'$ZABBIX_Disabled_Group_UsrGrpId'","output":["userid"],"status":1},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
-    #echo $tempvar
+    if [ "$b_verbose" = "true" ]; then echo $tempvar; fi
     IFS='"' # " is set as delimiter
     ZABBIX_ARRAY_disabled_User_RAW=($tempvar)
     IFS=' ' # space is set as delimiter
@@ -970,18 +1088,19 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
         fi
     done
     unset ZABBIX_ARRAY_disabled_User_RAW
-    echo " done!"
-    echo
-    echo
-    echo
-    echo
-    echo "--------------------------------------------------------------"
-    echo "STEP 9: Remove active user, add inactive user"
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 8: Get List of all disabled user in Group $ZABBIX_Disabled_User_Group"; fi
+    Print_Status_Done "done" $GREEN
+    Print_Status_Text "STEP 9: Remove active user, add inactive user"
+    if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+    if [ "$b_verbose" = "true" ]; then
+        echo "--------------------------------------------------------------"
+        echo "STEP 9: Remove active user, add inactive user"
+    fi
     # 2. Remove all active user from this List
     # 3. Add all user wich was removed from LDAP-Group but was in the Zabbix-LDAP-Group found
     declare -a new_ZABBIX_ARRAY_disabled_User_userid
     new_ZABBIX_ARRAY_disabled_User_userid=()
-    printf "Removing active Users from List ... "
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "Removing active Users from List"; fi
     for (( i=0; i < ${#ZABBIX_ARRAY_disabled_User_userid[*]}; i++ )); do
         b_skip_this_user="false"
         for (( k=0; k < ${#LDAP_ARRAY_Members_UserId[*]}; k++ )); do
@@ -993,8 +1112,8 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
             new_ZABBIX_ARRAY_disabled_User_userid+=("${ZABBIX_ARRAY_disabled_User_userid[$i]}")
         fi
     done
-    echo "done!"
-    printf "Adding inactive Users ... "
+    if [ "$b_verbose" = "true" ]; then Print_Status_Done "done" $GREEN; fi
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "Adding inactive Users"; fi
     for (( i=0; i < ${#ZABBIX_ARRAY_LDAP_GroupMember_userid[*]}; i++ )); do
         b_skip_this_user="false"
         for (( k=0; k < ${#LDAP_ARRAY_Members_UserId[*]}; k++ )); do
@@ -1006,56 +1125,58 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
             new_ZABBIX_ARRAY_disabled_User_userid+=("${ZABBIX_ARRAY_LDAP_GroupMember_userid[$i]}")
         fi
     done
-    echo "done!"
-    
-    echo
-    echo
-    echo
-    echo
-    echo "--------------------------------------------------------------"
-    echo "STEP 9: Replace Members of Group $ZABBIX_Disabled_User_Group"
-    printf "Create list of UserIds ..."
+    if [ "$b_verbose" = "true" ]; then Print_Status_Done "done" $GREEN; fi
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 9: Remove active user, add inactive user"; fi
+    Print_Status_Done "done" $GREEN
+    Print_Status_Text "STEP 10: Replace Members of Group $ZABBIX_Disabled_User_Group"
+    if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+    if [ "$b_verbose" = "true" ]; then
+        echo "--------------------------------------------------------------"
+        echo "STEP 10: Replace Members of Group $ZABBIX_Disabled_User_Group"
+    fi
     tempvar=""
-    list_of_userids=""
+    # maybe the list is empty! So we have to check
+    if [ "$list_of_userids" != "" ]; then list_of_userids=${list_of_userids::-1}; fi
     for (( i=0; i < ${#new_ZABBIX_ARRAY_disabled_User_userid[*]}; i++ )); do
         list_of_userids+='"'${new_ZABBIX_ARRAY_disabled_User_userid[$i]}'"'
         list_of_userids+=","
     done
     list_of_userids=${list_of_userids::-1}
-    printf "Update Zabbix Group $ZABBIX_Disabled_User_Group via API (Replace) ... "
+    if [ "$b_verbose" = "true" ]; then
+        printf 'curl -k -s -X POST -H "Content-Type:application/json"  -d '
+        printf "'"
+        printf '{"jsonrpc": "2.0","method":"usergroup.update","params":{"usrgrpid":"'$ZABBIX_Disabled_Group_UsrGrpId'","userids":['$list_of_userids']},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+        printf "' "
+        echo $ZABBIX_API_URL
+    fi
     tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"usergroup.update","params":{"usrgrpid":"'$ZABBIX_Disabled_Group_UsrGrpId'","userids":['$list_of_userids']},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
-    echo "done!"
-    echo
-    echo
-    echo
-    echo
+    if [ "$b_verbose" = "true" ]; then echo $tempvar; fi
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 10: Replace Members of Group $ZABBIX_Disabled_User_Group"; fi
+    Print_Status_Done "done" $GREEN
     #############################################################################################################
-    echo "--------------------------------------------------------------"
-    echo "STEP 10: Replace Members of Group $ZABBIX_LDAP_Group (2. Time)"
+    Print_Status_Text "STEP 11: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync (2. Time)"
+    if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
+    if [ "$b_verbose" = "true" ]; then
+        echo "--------------------------------------------------------------"
+        echo "STEP 11: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync (2. Time)"
+    fi
     # we have to do this twice if we move user between enabled and disabled and they are only in the Zabbix-LDAP-Group - they must be in one Group!"
     # If a user is a now a member of the deactivated user group we can now remove the user from the Zabbix-LDAP-Group
-    printf "Create list of UserIds ..."
     tempvar=""
     list_of_userids=""
     for (( i=0; i < ${#LDAP_ARRAY_Members_sAMAccountName[*]}; i++ )); do
         list_of_userids+='"'${LDAP_ARRAY_Members_UserId[$i]}'"'
         list_of_userids+=","
     done
-    list_of_userids=${list_of_userids::-1}
-    echo " done"
-    printf "Update Zabbix Group $ZABBIX_LDAP_Group via API (Replace) ... "
+    # maybe the list is empty! So we have to check
+    if [ "$list_of_userids" != "" ]; then list_of_userids=${list_of_userids::-1}; fi
     tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"usergroup.update","params":{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'","userids":['$list_of_userids']},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
-    echo "done!"
-    echo
-    echo
-    echo
-    echo
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 11: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync (2. Time)"; fi
+    Print_Status_Done "done" $GREEN
 else
-    echo
-    echo "No Changes found! Nothing to do!"
-    echo
+    Print_Status_Text "STEP 3: Compare Groups for changes"
+    Print_Status_Done "no changes" $GREEN
 fi
-
 #############################################################################################################
 #  ______     _     _     _        _                             _   
 # |___  /    | |   | |   (_)      | |                           | |  
@@ -1065,9 +1186,9 @@ fi
 # /_____\__,_|_.__/|_.__/|_/_/\_\ |______\___/ \__, |\___/ \__,_|\__|
 #                                               __/ |                
 #                                              |___/                 
-echo
-printf "Logout Zabbix API ... "
-myJSON=$(curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"user.logout","params":[],"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL)
-echo "done"
-echo
+# Logout before exit
+if [ "$b_Zabbix_is_logged_in" = "true" ]; then
+    Zabbix_Logout
+fi
+#############################################################################################################
 exit 0
