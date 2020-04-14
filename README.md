@@ -163,8 +163,7 @@ You should get some output like this:
     Check 1: Number of Users Zabbix ...................................... 2
     Check 1: Number of Users ............................................. not equal
     STEP 4: Get all Zabbix Users with alias and userid ................... done
-    STEP 5: Compare LDAP user with existing Zabbix User .................. must create 1 new 
-    ser
+    STEP 5: Compare LDAP user with existing Zabbix User .................. must create 1 new user
     STEP 6: Create needed 1 new Zabbix-User .............................. done
     STEP 7: Replace Members of Group LDAP-SuperAdmin ..................... done
     STEP 8: Get List of all disabled user in Group LDAP-Disabled ......... done
