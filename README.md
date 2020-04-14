@@ -20,11 +20,9 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
  - Create a special User for the LDAP Access. User need no special rights but should be Domain-User
  - Avoid special chars in username and password like `äöü!?>$%` and spaces
  - After creating get the ***distinguished name*** of this user. You can query the name on a doamin controller with<br>
-Command:
-
-    
-    dsquery user -samid <username>
-    
+```
+dsquery user -samid <username>
+```
 
 Output should something like
 
