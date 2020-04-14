@@ -59,15 +59,17 @@ In the examples i am using the username `zabbixapiuser`<br>
 
 ### 4. Create Zabbix Target Groups
 At least 2 groups are required:<br>
+<br>
 **Target Group for Users:**<br>
 This Group must have **Frontend access** `LDAP`<br>
 and should be enabled. 
 In the examples i am using the groupname`Zabbix-Super-Admin`<br>
+<br>
 **Target Group for Disabled Users:**<br>
 The build-in Group **Disabled** can be used.<br>
 Or create a new group which is **not** enabled (remove checkox) and **Frontend access** `Disabled`<br>
 In the examples i am using the groupname`LDAP-Disabled`<br>
-
+<br>
 ### 5. Check Zabbix LDAP-Settings
 Check the Settings for LDAP:
 
