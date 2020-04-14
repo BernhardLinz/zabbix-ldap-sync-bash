@@ -1,8 +1,8 @@
 #!/bin/bash
 #############################################################################################################
 # Script Name ...: zabbix-ldap-sync.sh
-# Version .......: V1.0
-# Date ..........: 09.04.2020
+# Version .......: V1.1
+# Date ..........: 14.04.2020
 # Description....: Synchronise Members of a Actice Directory Group with Zabbix via API
 #                  User wich are removed will be deactivated
 # Args ..........: 
@@ -11,7 +11,7 @@
 # Email Private  : Bernhard@znil.de
 #############################################################################################################
 # Variables
-Script_Version="V1.0 (2020-04-01)"
+Script_Version="V1.1 (2020-04-14)"
 # Colors for printf and echo
 DEFAULT_FOREGROUND=39
 RED=31
@@ -182,6 +182,8 @@ while [[ $# -gt 0 ]]; do
 done
 if [ "$b_Unknown_Parameter" = "true" ]; then
     # ToDo: Create Help text
+    echo "Parameter error - print help"
+    echo "In Future here will be some helping text"
     exit 1
 fi
 #############################################################################################################
@@ -266,53 +268,21 @@ fi
 ####################################################################################################
 if ! [ -z ${LDAP_SearchBase+x} ]; then Print_Verbose_Text "LDAP_SearchBase" "${LDAP_SearchBase}"; else Print_Error "Missing LDAP_SearchBase"; fi
 ####################################################################################################
-if ! [ -z ${LDAP_Groupname_ZabbixSuperAdmin_for_Sync+x} ]; then
-    Print_Verbose_Text "LDAP_Groupname_ZabbixSuperAdmin_for_Sync" "${LDAP_Groupname_ZabbixSuperAdmin_for_Sync}"
+if ! [ -z ${LDAP_Groupname_for_Sync+x} ]; then
+    Print_Verbose_Text "LDAP_Groupname_for_Sync" "${LDAP_Groupname_for_Sync}"
 else
-    LDAP_Groupname_ZabbixSuperAdmin_for_Sync="skip"
-    Print_Verbose_Text "LDAP_Groupname_ZabbixSuperAdmin_for_Sync" "skip sync"
+    LDAP_Groupname_for_Sync="skip"
+    Print_Verbose_Text "LDAP_Groupname_for_Sync" "skip sync"
 fi
-if [ "$LDAP_Groupname_ZabbixSuperAdmin_for_Sync" = "skip" ]; then Print_Verbose_Text "LDAP_Groupname_ZabbixSuperAdmin_for_Sync" "skip sync"; fi
+if [ "$LDAP_Groupname_for_Sync" = "skip" ]; then Print_Verbose_Text "LDAP_Groupname_for_Sync" "skip sync"; fi
 ####################################################################################################
-if ! [ -z ${ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync+x} ]; then
-    Print_Verbose_Text "ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync" "${ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync}"
+if ! [ -z ${ZABBIX_Groupname_for_Sync+x} ]; then
+    Print_Verbose_Text "ZABBIX_Groupname_for_Sync" "${ZABBIX_Groupname_for_Sync}"
 else
-    ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync="skip"
-    Print_Verbose_Text "ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync" "skip sync"
+    ZABBIX_Groupname_for_Sync="skip"
+    Print_Verbose_Text "ZABBIX_Groupname_for_Sync" "skip sync"
 fi
-if [ "$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync" = "skip" ]; then Print_Verbose_Text "ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync" "skip sync"; fi
-####################################################################################################
-if ! [ -z ${LDAP_Groupname_ZabbixAdmin_for_Sync+x} ]; then
-    Print_Verbose_Text "LDAP_Groupname_ZabbixAdmin_for_Sync" "${LDAP_Groupname_ZabbixAdmin_for_Sync}"
-else
-    LDAP_Groupname_ZabbixAdmin_for_Sync="skip"
-    Print_Verbose_Text "LDAP_Groupname_ZabbixAdmin_for_Sync" "skip sync"
-fi
-if [ "$LDAP_Groupname_ZabbixAdmin_for_Sync" = "skip" ]; then Print_Verbose_Text "LDAP_Groupname_ZabbixAdmin_for_Sync" "skip sync"; fi
-####################################################################################################
-if ! [ -z ${ZABBIX_Groupname_ZabbixAdmin_for_Sync+x} ]; then
-    Print_Verbose_Text "ZABBIX_Groupname_ZabbixAdmin_for_Sync" "${ZABBIX_Groupname_ZabbixAdmin_for_Sync}"
-else
-    ZABBIX_Groupname_ZabbixAdmin_for_Sync="skip"
-    Print_Verbose_Text "ZABBIX_Groupname_ZabbixAdmin_for_Sync" "skip sync"
-fi
-if [ "$ZABBIX_Groupname_ZabbixAdmin_for_Sync" = "skip" ]; then Print_Verbose_Text "ZABBIX_Groupname_ZabbixAdmin_for_Sync" "skip sync"; fi
-####################################################################################################
-if ! [ -z ${LDAP_Groupname_ZabbixUser_for_Sync+x} ]; then
-    Print_Verbose_Text "LDAP_Groupname_ZabbixUser_for_Sync" "${LDAP_Groupname_ZabbixUser_for_Sync}"
-else
-    LDAP_Groupname_ZabbixUser_for_Sync="skip"
-    Print_Verbose_Text "LDAP_Groupname_ZabbixUser_for_Sync" "skip sync"
-fi
-if [ "$LDAP_Groupname_ZabbixUser_for_Sync" = "skip" ]; then Print_Verbose_Text "LDAP_Groupname_ZabbixUser_for_Sync" "skip sync"; fi
-####################################################################################################
-if ! [ -z ${ZABBIX_Groupname_ZabbixUser_for_Sync+x} ]; then
-    Print_Verbose_Text "ZABBIX_Groupname_ZabbixUser_for_Sync" "${ZABBIX_Groupname_ZabbixUser_for_Sync}"
-else
-    ZABBIX_Groupname_ZabbixUser_for_Sync="skip"
-    Print_Verbose_Text "ZABBIX_Groupname_ZabbixUser_for_Sync" "skip sync"
-fi
-if [ "$ZABBIX_Groupname_ZabbixUser_for_Sync" = "skip" ]; then Print_Verbose_Text "ZABBIX_Groupname_ZabbixUser_for_Sync" "skip sync"; fi
+if [ "$ZABBIX_Groupname_for_Sync" = "skip" ]; then Print_Verbose_Text "ZABBIX_Groupname_for_Sync" "skip sync"; fi
 ####################################################################################################
 if ! [ -z ${ZABBIX_Disabled_User_Group+x} ]; then
     Print_Verbose_Text "ZABBIX_Disabled_User_Group" "${ZABBIX_Disabled_User_Group}"
@@ -341,20 +311,6 @@ if ! [ -z ${ZABBIX_UserType_User+x} ]; then
 else
     ZABBIX_UserType_User=1
     Print_Verbose_Text "ZABBIX_UserType_User (using Default Value)" "${ZABBIX_UserType_User}"
-fi
-####################################################################################################
-if ! [ -z ${ZABBIX_UserType_Admin+x} ]; then
-    Print_Verbose_Text "ZABBIX_UserType_Admin" "${ZABBIX_UserType_Admin}"
-else
-    ZABBIX_UserType_Admin=1
-    Print_Verbose_Text "ZABBIX_UserType_Admin (using Default Value)" "${ZABBIX_UserType_Admin}"
-fi
-####################################################################################################
-if ! [ -z ${ZABBIX_UserType_SuperAdmin+x} ]; then
-    Print_Verbose_Text "ZABBIX_UserType_SuperAdmin" "${ZABBIX_UserType_SuperAdmin}"
-else
-    ZABBIX_UserType_SuperAdmin=1
-    Print_Verbose_Text "ZABBIX_UserType_SuperAdmin (using Default Value)" "${ZABBIX_UserType_SuperAdmin}"
 fi
 ####################################################################################################
 if ! [ -z ${ZABBIX_MediaTypeID+x} ]; then
@@ -389,10 +345,10 @@ if [ "$b_verbose" = "true" ]; then
     echo
     echo "STEP 1: Getting all Members from Active Directory / LDAP Group"
     echo "--------------------------------------------------------------"
-    echo "Group Name ......: $LDAP_Groupname_ZabbixSuperAdmin_for_Sync"
-    echo "LDAP Server .....: $LDAP_Source_URL"
-    echo "LDAP User .......: $LDAP_Bind_User_DN"
-    echo "LDAP Search Base : $LDAP_SearchBase"
+    echo "Group Name SuperAdmin : $LDAP_Groupname_for_Sync"
+    echo "LDAP Server ..........: $LDAP_Source_URL"
+    echo "LDAP User ............: $LDAP_Bind_User_DN"
+    echo "LDAP Search Base .....: $LDAP_SearchBase"
     echo "--------------------------------------------------------------"
     echo "running ldapsearch:"
 fi
@@ -400,30 +356,30 @@ if [ LDAP_Ignore_SSL_Certificate = "false" ]; then
     # normal ldapsearch call
     if [ "$b_verbose" = "true" ]; then
         if [ "$b_showpasswords" = "true" ]; then
-            echo 'ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn="'$LDAP_Groupname_ZabbixSuperAdmin_for_Sync'"))"'
+            echo 'ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn="'$LDAP_Groupname_for_Sync'"))"'
         else
-            echo 'ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "***********" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn="'$LDAP_Groupname_ZabbixSuperAdmin_for_Sync'"))"'
+            echo 'ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "***********" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn="'$LDAP_Groupname_for_Sync'"))"'
         fi
     fi
     # yes, ldapsearch is called twice - first time without grep to catch the exitcode, 2. time to catch the content
-    tempvar=`ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_ZabbixSuperAdmin_for_Sync))" o member`
+    tempvar=`ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_for_Sync))" o member`
     ldapsearch_exitcode="$?"
     if [ "$b_verbose" = "true" ]; then echo "ldapsearch_exitcode: $ldapsearch_exitcode"; fi
-    tempvar=`ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_ZabbixSuperAdmin_for_Sync))" o member | grep member:`
+    tempvar=`ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_for_Sync))" o member | grep member:`
 else
     # ignore SSL ldapsearch
     if [ "$b_verbose" = "true" ]; then
         if [ "$b_showpasswords" = "true" ]; then
-            echo 'LDAPTLS_REQCERT=never ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn='$LDAP_Groupname_ZabbixSuperAdmin_for_Sync'))" o member'
+            echo 'LDAPTLS_REQCERT=never ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn='$LDAP_Groupname_for_Sync'))" o member'
         else
-            echo 'LDAPTLS_REQCERT=never ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "***********" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn='$LDAP_Groupname_ZabbixSuperAdmin_for_Sync'))" o member'
+            echo 'LDAPTLS_REQCERT=never ldapsearch -x -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "***********" -b "'$LDAP_SearchBase'" "(&(objectClass=group)(cn='$LDAP_Groupname_for_Sync'))" o member'
         fi
     fi
     # yes, ldapsearch is called twice - first time without grep to catch the exitcode, 2. time to catch the content
-    tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_ZabbixSuperAdmin_for_Sync))" o member`
+    tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_for_Sync))" o member`
     ldapsearch_exitcode="$?"
     if [ "$b_verbose" = "true" ]; then echo "ldapsearch_exitcode: $ldapsearch_exitcode"; fi
-    tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_ZabbixSuperAdmin_for_Sync))" o member | grep member:`
+    tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "(&(objectClass=group)(cn=$LDAP_Groupname_for_Sync))" o member | grep member:`
 fi
 if [ "$b_verbose" = "true" ]; then 
     echo 'Result ldapsearch (with "grep member:" : '"$tempvar"
@@ -553,7 +509,7 @@ fi
 unset LDAP_ARRAY_Members_RAW
 if [ "$b_verbose" = "true" ]; then
     echo "------------------------------------------------------------------------------------------------"
-    echo "Result from STEP 1: Getting all Members from Active Directory / LDAP Group $LDAP_Groupname_ZabbixSuperAdmin_for_Sync"
+    echo "Result from STEP 1: Getting all Members from Active Directory / LDAP Group $LDAP_Groupname_for_Sync"
     echo "----+----------------------+----------------------+----------------------+----------------------"
     printf "%-3s | %-20s | %-20s | %-20s | %-20s" "No." "sAMAccountName" "Surname" "Givenname" "Email"
     printf "\n"
@@ -625,7 +581,7 @@ if [ "$b_verbose" = "true" ]; then
     echo
     echo "STEP 2: Get Members of Zabbix-LDAP Group"
     echo "--------------------------------------------------------------"
-    echo "Zabbix LDAP Group Name .........: $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
+    echo "Zabbix LDAP Group Name .........: $ZABBIX_Groupname_for_Sync"
     echo "Zabbix Disabled User Group Name : $ZABBIX_Disabled_User_Group"
     echo "Zabbix API URL .................: $ZABBIX_API_User"
     echo "Zabbix API User ................: $LDAP_Bind_User_DN"
@@ -633,17 +589,17 @@ if [ "$b_verbose" = "true" ]; then
 fi
 #############################################################################################################
 # Get UsrGrpIds
-Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"'
+Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Groupname_for_Sync'"'
 if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
 declare -a ZABBIX_ARRAY_usrgrpid_RAW
 if [ "$b_verbose" = "true" ]; then
     printf 'curl -k -s -X POST -H "Content-Type:application/json"  -d '
     printf "'"
-    printf '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"},"output":"extend","status":0},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+    printf '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'$ZABBIX_Groupname_for_Sync'"},"output":"extend","status":0},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
     printf "'"
     printf " $ZABBIX_API_URL"
 fi
-tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"},"output":"extend","status":0},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'$ZABBIX_Groupname_for_Sync'"},"output":"extend","status":0},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
 if [ "$b_verbose" = "true" ]; then echo $tempvar; fi
 # The answer is an JSON - we split by the " into an array and search for the wanted values
 IFS='"' # " is set as delimiter
@@ -658,8 +614,8 @@ for (( i=0; i < ${#ZABBIX_ARRAY_usrgrpid_RAW[*]}; i++ )); do
         break
     fi
 done
-Print_Verbose_Text "$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync" "$ZABBIX_LDAP_Group_UsrGrpId"
-if [ "$b_verbose" = "true" ]; then Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"'; fi
+Print_Verbose_Text "$ZABBIX_Groupname_for_Sync" "$ZABBIX_LDAP_Group_UsrGrpId"
+if [ "$b_verbose" = "true" ]; then Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Groupname_for_Sync'"'; fi
 Print_Status_Done "done" $GREEN
 tempvar=""
 Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Disabled_User_Group'"'
@@ -683,7 +639,7 @@ tempvar=""
 unset ZABBIX_ARRAY_usrgrpid_RAW
 #############################################################################################################
 # Get alias and userid of the Zabbix Group Members
-Print_Status_Text 'determine alias and userid for Members of "'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"'
+Print_Status_Text 'determine alias and userid for Members of "'$ZABBIX_Groupname_for_Sync'"'
 if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
 
 declare -a ZABBIX_ARRAY_LDAP_GroupMember_alias
@@ -719,12 +675,12 @@ for (( i=0; i < ${#ZABBIX_ARRAY_LDAP_GroupMember_RAW[*]}; i++ )); do
         #printf "."
     fi
 done
-if [ "$b_verbose" = "true" ]; then Print_Status_Text 'determine alias and userid for Members of "'$ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync'"'; fi
+if [ "$b_verbose" = "true" ]; then Print_Status_Text 'determine alias and userid for Members of "'$ZABBIX_Groupname_for_Sync'"'; fi
 Print_Status_Done "done" $GREEN
 unset ZABBIX_ARRAY_LDAP_GroupMember_RAW
 if [ "$b_verbose" = "true" ]; then
     echo "------------------------------------------------------------------------------------------------"
-    echo "Result from STEP 2: Get Members of Zabbix-LDAP Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
+    echo "Result from STEP 2: Get Members of Zabbix-LDAP Group $ZABBIX_Groupname_for_Sync"
     echo "----+----------------------+----------------------+----------------------+----------------------"
     printf "%-3s | %-20s | %-20s | %-20s | %-20s" "No." "Alias" "UserId" " " " "
     printf "\n"
@@ -751,8 +707,8 @@ if [ "$b_verbose" = "true" ]; then
     echo
     echo "STEP 3: Compare Groups for changes"
     echo "--------------------------------------------------------------"
-    echo "AD / LDAP Group Name ...........: $LDAP_Groupname_ZabbixSuperAdmin_for_Sync"
-    echo "Zabbix LDAP Group Name .........: $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
+    echo "AD / LDAP Group Name ...........: $LDAP_Groupname_for_Sync"
+    echo "Zabbix LDAP Group Name .........: $ZABBIX_Groupname_for_Sync"
     echo "--------------------------------------------------------------"
 fi
 b_Must_Sync_Users="false"
@@ -846,12 +802,10 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
         if [ "${ZABBIX_ARRAY_AllUser_RAW[$i]}" = "userid" ]; then
             i=$(($i + 2))
             ZABBIX_ARRAY_AllUser_userid+=("${ZABBIX_ARRAY_AllUser_RAW[$i]}")
-            printf "."
         fi
         if [ "${ZABBIX_ARRAY_AllUser_RAW[$i]}" = "alias" ]; then
             i=$(($i + 2))
             ZABBIX_ARRAY_AllUser_alias+=("${ZABBIX_ARRAY_AllUser_RAW[$i]}")
-            printf "."
         fi
     done
     unset ZABBIX_ARRAY_AllUser_RAW
@@ -1024,14 +978,17 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
             done
             echo "----------------------------------------------------------------------------------------------------------------------"
         fi
+    else
+        Print_Status_Text "STEP 6: Create needed $i_CounterNewUsers new Zabbix-User"
+        Print_Status_Done "skipped" $GREEN
     fi
     
     #############################################################################################################
-    Print_Status_Text "STEP 7: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
+    Print_Status_Text "STEP 7: Replace Members of Group $ZABBIX_Groupname_for_Sync"
     if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
     if [ "$b_verbose" = "true" ]; then
         echo "--------------------------------------------------------------"
-        echo "STEP 7: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"
+        echo "STEP 7: Replace Members of Group $ZABBIX_Groupname_for_Sync"
     fi
     tempvar=""
     list_of_userids=""
@@ -1041,7 +998,7 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
     done
     # maybe the list is empty! So we have to check
     if [ "$list_of_userids" != "" ]; then list_of_userids=${list_of_userids::-1}; fi
-    if [ "$b_verbose" = "true" ]; then printf "Update Zabbix Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync via API (Replace)"; fi
+    if [ "$b_verbose" = "true" ]; then printf "Update Zabbix Group $ZABBIX_Groupname_for_Sync via API (Replace)"; fi
     if [ "$b_verbose" = "true" ]; then
         printf 'curl -k -s -X POST -H "Content-Type:application/json"  -d '
         printf "'"
@@ -1051,7 +1008,7 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
     fi
     tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"usergroup.update","params":{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'","userids":['$list_of_userids']},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
     if [ "$b_verbose" = "true" ]; then echo $tempvar; fi
-    if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 7: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync"; fi
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 7: Replace Members of Group $ZABBIX_Groupname_for_Sync"; fi
     Print_Status_Done "done" $GREEN
     
     #############################################################################################################
@@ -1154,11 +1111,11 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
     if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 10: Replace Members of Group $ZABBIX_Disabled_User_Group"; fi
     Print_Status_Done "done" $GREEN
     #############################################################################################################
-    Print_Status_Text "STEP 11: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync (2. Time)"
+    Print_Status_Text "STEP 11: Replace Members of Group $ZABBIX_Groupname_for_Sync (2. Time)"
     if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
     if [ "$b_verbose" = "true" ]; then
         echo "--------------------------------------------------------------"
-        echo "STEP 11: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync (2. Time)"
+        echo "STEP 11: Replace Members of Group $ZABBIX_Groupname_for_Sync (2. Time)"
     fi
     # we have to do this twice if we move user between enabled and disabled and they are only in the Zabbix-LDAP-Group - they must be in one Group!"
     # If a user is a now a member of the deactivated user group we can now remove the user from the Zabbix-LDAP-Group
@@ -1171,7 +1128,7 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
     # maybe the list is empty! So we have to check
     if [ "$list_of_userids" != "" ]; then list_of_userids=${list_of_userids::-1}; fi
     tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"usergroup.update","params":{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'","userids":['$list_of_userids']},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
-    if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 11: Replace Members of Group $ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync (2. Time)"; fi
+    if [ "$b_verbose" = "true" ]; then Print_Status_Text "STEP 11: Replace Members of Group $ZABBIX_Groupname_for_Sync (2. Time)"; fi
     Print_Status_Done "done" $GREEN
 else
     Print_Status_Text "STEP 3: Compare Groups for changes"

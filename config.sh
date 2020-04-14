@@ -24,21 +24,13 @@ LDAP_Ignore_SSL_Certificate="true"
 LDAP_Bind_User_DN="CN=ldapSearch,OU=MyUsers,DC=mydomain,DC=local"
 # the passwort og the user (should be marked as never changed)
 # Please avoid special chars which were use in bash like $`´'"\/<>()[]^
-LDAP_Bind_User_Password="9qA3XB1r.##Xr2+7c1HP--!pq"
+LDAP_Bind_User_Password="9qA3XB1r##Xr27c1HPpq"
 # Searchbase - your Domain name or specify OU
-LDAP_SearchBase="DC=znil,DC=local"
+LDAP_SearchBase="DC=exampledomain,DC=local"
 
 # Name of Groups in LDAP (Active-Directory) and in Zabbix for Sync with Zabbix
-# if you do not want do use one of these groups set both groupnames to "skip" or comment out these lines
-# Will be created as User Type "Zabbix Super Admin" (default)
-LDAP_Groupname_ZabbixSuperAdmin_for_Sync="Zabbix-Super-Admin"
-ZABBIX_Groupname_ZabbixSuperAdmin_for_Sync="LDAP-SuperAdmin"
-# Will be created as User Type "Zabbix Admin" (default)
-LDAP_Groupname_ZabbixAdmin_for_Sync="Zabbix-Admin"
-ZABBIX_Groupname_ZabbixAdmin_for_Sync="LDAP-Admin"
-# Will be created as User Type "Zabbix User" (default)
-LDAP_Groupname_ZabbixUser_for_Sync="Zabbix-User"
-ZABBIX_Groupname_ZabbixUser_for_Sync="LDAP-User"
+ZABBIX_Groupname_for_Sync="Zabbix-Super-Admin"
+ZABBIX_Groupname_for_Sync="LDAP-SuperAdmin"
 
 # When you remove an user from the LDAP-Group, the user will moved in this group which is "Not enabled" = Disabled and Frontend access is "disabled"
 ZABBIX_Disabled_User_Group="Disabled"
@@ -55,9 +47,7 @@ ZABBIX_API_Password="strongpassword73#"
 # 1 - (default) Zabbix user;
 # 2 - Zabbix admin;
 # 3 - Zabbix super admin.
-ZABBIX_UserType_User=1
-ZABBIX_UserType_Admin=2
-ZABBIX_UserType_SuperAdmin=3
+ZABBIX_UserType_User=3
 
 # Zabbix Media Type Id
 # At new Installation:
