@@ -21,10 +21,10 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
  - Avoid special chars in username and password like `äöü!?>$%` and spaces
  - After creating get the ***distinguished name*** of this user. You can query the name on a doamin controller with
     
-    `dsquery user -samid <username>`
+    dsquery user -samid <username>
 <br>Output should something like
     
-    `CN=ldapSearch,OU=MyUsers,DC=exampledomain,DC=local`
+    CN=ldapSearch,OU=MyUsers,DC=exampledomain,DC=local
 <br>where ***ldapSearch*** is the example-user
  
 Create one or more Active Directory Groups and add Members. Empty Groups are allowed (then all members in Zabbix will be removed from Group and disabled).
@@ -39,13 +39,16 @@ In the examples i am using the groupname `Zabbix-Super-Admin`
 Yes, i am using pure bash to avoid any prerequisites but we need a program for accessing LDAP and some other tools. All of them should be available in the standard repositories:
 **Debian/Ubuntu**
     
-    `apt install ldap-utils`
+    apt install ldap-utils
 **Red Hat/CentOs/SuSe**
     
-    `yum install openldap-clients`
+    yum install openldap-clients
 The other needed programs are
     
-    `curl sed dirname readlink`
+    curl
+    sed
+    dirname
+    readlink
 which should be already installed
 
 ### 3. Create Zabbix-User for API Access
