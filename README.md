@@ -22,10 +22,13 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
  - After creating get the ***distinguished name*** of this user. You can query the name on a doamin controller with
     
     dsquery user -samid <username>
-<br>Output should something like
+
+Output should something like
+
     
     CN=ldapSearch,OU=MyUsers,DC=exampledomain,DC=local
-<br>where ***ldapSearch*** is the example-user
+
+where ***ldapSearch*** is the example-user
  
 Create one or more Active Directory Groups and add Members. Empty Groups are allowed (then all members in Zabbix will be removed from Group and disabled).
 I suggest Groups for
