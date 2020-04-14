@@ -10,8 +10,8 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
  - Zabbix API via http / https (ignoring SLL per default)
  - Zabbix 3.x and 4.x tested
  - Multiple config-files possible for multiple groups and multiple domains
- - Create needed users in Zabbix as User, Admin or SuperAdmin, Email 
- - Disable removed users
+ - Create needed users in Zabbix as User, Admin or SuperAdmin, including Email-Address as media
+ - Disable users in Zabbix which are removed from Group
  - user- or group names with spaces are no problem
 
 ## How to Use
@@ -217,3 +217,4 @@ Test the sync in the shell with full paths like
      */10 * * * * /usr/lib/zabbix/zabbix-ldap-sync-bash/zabbix-ldap-sync.sh -c /usr/lib/zabbix/zabbix-ldap-sync-bash/zabbix-readonly.conf -s
  for syncing every 10 minutes
 
+## Update the Script to latest Version
