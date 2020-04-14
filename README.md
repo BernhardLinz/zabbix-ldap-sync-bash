@@ -95,9 +95,12 @@ Make the two `*.sh`scripts executeable:
 
 
 ### 7. Configure the Script
-The script `zabbix-ldap-sync.sh`is looking for the `config.sh`in the same folder.
+The script `zabbix-ldap-sync.sh`is looking for the `config.sh`in the same folder.<br>
+Just make a copy of the `config-example.sh` <br>
+    
+    cp config-example.sh config.sh
 Open the file `config.sh`with an editor and set the needed values:
-
+    
     nano config .sh
 
 #### LDAP_Source_URL
@@ -218,3 +221,7 @@ Test the sync in the shell with full paths like
  for syncing every 10 minutes
 
 ## Update the Script to latest Version
+Change to the Script folder and just type<br>
+    
+    git pull
+The `zabbix-ldap-sync.sh` and the ´config-example.sh´ maybe overwritten with the new versions.<br>
