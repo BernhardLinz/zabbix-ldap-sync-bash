@@ -24,7 +24,7 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
 
 
 ```
-dsquery user -samid <username>
+dsquery user -samid name_of_the_user
 ```
 
 Output should something like
