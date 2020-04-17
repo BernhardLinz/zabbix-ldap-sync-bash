@@ -153,8 +153,8 @@ while [[ $# -gt 0 ]]; do
     current_parameter="$1"
     case $current_parameter in
         -c|-C|--config)
+            Config_File="$2"
             shift # past -c / --config
-            Config_File="$current_parameter"
             shift # past value
             ;;
         -p|-P|--ShowPassword)
