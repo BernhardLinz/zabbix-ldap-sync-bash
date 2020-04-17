@@ -1,8 +1,10 @@
 # zabbix-ldap-sync-bash
 This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a Zabbix-Group
 
-**Changelog:**		2020-04-14	V1.1 => first public version 
-
+**Changelog:**<br>
+ - 2020-04-14	V1.1 => first public version 
+ - 2020-04-17	V1.1a => Replace hard coded $2 with push-solution
+<br>
 ## Features:
 
  - Pure Bash Skript for Linux
