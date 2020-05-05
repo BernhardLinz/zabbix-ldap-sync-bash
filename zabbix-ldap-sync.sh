@@ -1,8 +1,8 @@
 #!/bin/bash
 #############################################################################################################
 # Script Name ...: zabbix-ldap-sync.sh
-# Version .......: V1.1a
-# Date ..........: 17.04.2020
+# Version .......: V1.1b
+# Date ..........: 05.05.2020
 # Description....: Synchronise Members of a Actice Directory Group with Zabbix via API
 #                  User wich are removed will be deactivated
 # Args ..........: 
@@ -11,7 +11,7 @@
 # Email Private  : Bernhard@znil.de
 #############################################################################################################
 # Variables
-Script_Version="V1.1a (2020-04-17)"
+Script_Version="V1.1b (2020-05-05)"
 # Colors for printf and echo
 DEFAULT_FOREGROUND=39
 RED=31
