@@ -435,7 +435,6 @@ if [ "${#LDAP_ARRAY_Members_DN[*]}" -gt 0 ]; then
     b_check_Email="false"
     
     for (( i=0; i < ${#LDAP_ARRAY_Members_DN[*]}; i++ )); do
-member: CN=Andreas ADM. Klausing,OU=Active,OU=Users,OU=THE,DC=prod,DC=the,DC=l
         # When the Loop start again we have to for all values. All arrays-size must be equal!
         # First run of loop will be skipped because b_check_sAMAccountName is false
         if [ "$b_check_sAMAccountName" = "true" ]; then
