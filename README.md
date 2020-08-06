@@ -2,9 +2,10 @@
 This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a Zabbix-Group
 
 **Changelog:**<br>
- - 2020-04-14	V1.1 => first public version 
- - 2020-04-17	V1.1a => Replace hard coded $2 with push-solution
- - 2020-05-05	V1.1b => add ldapsearch parameter '-o ldif-wrap=no' to prevent line breaks after 79 chars
+ - 2020-04-14   V1.1 => first public version 
+ - 2020-04-17   V1.1a => Replace hard coded $2 with push-solution
+ - 2020-05-05   V1.1b => add ldapsearch parameter '-o ldif-wrap=no' to prevent line breaks after 79 chars
+ - 2020-08-06   V1.1c => add more debbuging for -v when a new user is created (show the full curl command)
 <br>
 ## Features:
 
