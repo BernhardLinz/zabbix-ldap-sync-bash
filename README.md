@@ -7,12 +7,12 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
  - 2020-05-05   V1.1b => add ldapsearch parameter '-o ldif-wrap=no' to prevent line breaks after 79 chars
  - 2020-08-06   V1.1c => add more debbuging for -v when a new user is created (show the full curl command)
 <br>
-## Features:
 
+## Features
  - Pure Bash Skript for Linux
  - LDAP and LDAPS Support (ignoring SSL possible)
  - Zabbix API via http / https (ignoring SLL per default)
- - Zabbix 3.x and 4.x tested
+ - Zabbix 3.x, 4.x and 5.0 tested (will not not work with 5.2 (work in progress)!)
  - Multiple config-files possible for multiple groups and multiple domains
  - Create needed users in Zabbix as User, Admin or SuperAdmin, including Email-Address as media
  - Disable users in Zabbix which are removed from Group
