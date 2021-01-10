@@ -6,15 +6,18 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
  - 2020-04-17   V1.1a => Replace hard coded $2 with push-solution
  - 2020-05-05   V1.1b => add ldapsearch parameter `-o ldif-wrap=no` to prevent line breaks after 79 chars
  - 2020-08-06   V1.1c => add more debbuging for -v when a new user is created (show the full curl command)
+ - 2021-01-10   V1.2 => add support for Zabbix 5.2 or higher (breaking changes in API) with API-Version check bultin
 <br>
 
 ## Features
  - Pure Bash Skript for Linux
  - LDAP and LDAPS Support (ignoring SSL possible)
  - Zabbix API via http / https (ignoring SLL per default)
- - Zabbix 3.x, 4.x and 5.0 tested (will not not work with 5.2 (work in progress)!)
+ - Zabbix 3.x, 4.x and 5.x tested (new User Roles since Version 5.2 are supported)
  - Multiple config-files possible for multiple groups and multiple domains
- - Create needed users in Zabbix as User, Admin or SuperAdmin, including Email-Address as media
+ - Create needed users in Zabbix including Email-Address as media
+   - up to Zabbix 5.0.x as User, Admin or SuperAdmin
+   - from Zabbix 5.2.x using the User Role (roleid)
  - Disable users in Zabbix which are removed from Group
  - user- or group names with spaces are no problem
 
@@ -158,11 +161,18 @@ Depending on the Zabbix installation,  `/api_jsonrpc.php` or `/zabbix/api_jsonrp
 
 #### ZABBIX_UserType_User
     ZABBIX_UserType_User=3
-Type of user if new one must created.
+up to Zabbix 5.0.x there are 3 bultin Types, 1,2 or 3
+from Zabbix 5.2.x there are User Rules. There are 3 predefined user roles which correspond to the pevious user types.
+but you can define additional user roles in Zabbix and use here
+The bultin Types (<=5.0.x) or predefined Roles (>=5.2.x) are
 1 = Zabbix User
 2 = Zabbix Admin
 3 = Zabbix Super Admin
-The script will not update existing users.
+The script will not update existing zabbix-users.
+You can check the ID of the RoleId in the webinterface 
+
+    Administration => User roles => click the name of the role
+At the end of the URL you see `roleid=1` with the needed ID
 
 #### ZABBIX_MediaTypeID
     ZABBIX_MediaTypeID="1"
@@ -176,13 +186,15 @@ At the end of the URL you see `mediatypeid=1` with the needed ID
 You should get some output like this:
     
     ---------------------------------------------------------------------------
-    zabbix-ldap-sync.sh (Version V1.1 (2020-04-14)) startup
+    zabbix-ldap-sync.sh (Version V1.2 (2021-01-10)) startup
     Checking prerequisites ............................................... done
     Searching config file ................................................ done
-    Reading "/usr/lib/zabbix/zabbix-ldap-sync/config-znil.sh" ............ done
+    Reading "/usr/lib/zabbix/zabbix-ldap-sync-bash/config-znil.sh" ....... done
     Check all needed Settings ............................................ done
     STEP 1: Getting all Members from Active Directory / LDAP Group ....... done
     Query sAMAccountName, sn, givenName and primary Email-Address ........ done
+    Check Zabbix API Version ............................................. done
+    Using User mode ...................................................... roleid
     Login at Zabbix API .................................................. done
     STEP 2: Get Members of Zabbix-LDAP Groups ............................ checking
     determine UsrGrpID of "LDAP-SuperAdmin" .............................. done
@@ -190,17 +202,18 @@ You should get some output like this:
     determine alias and userid for Members of "LDAP-SuperAdmin" .......... done
     STEP 3: Compare Groups for changes ................................... checking
     Check 1: Number of Users LDAP ........................................ 4
-    Check 1: Number of Users Zabbix ...................................... 2
+    Check 1: Number of Users Zabbix ...................................... 1
     Check 1: Number of Users ............................................. not equal
     STEP 4: Get all Zabbix Users with alias and userid ................... done
-    STEP 5: Compare LDAP user with existing Zabbix User .................. must create 1 new user
-    STEP 6: Create needed 1 new Zabbix-User .............................. done
+    STEP 5: Compare LDAP user with existing Zabbix User .................. must create 3 new user
+    STEP 6: Create needed 3 new Zabbix-User .............................. done
     STEP 7: Replace Members of Group LDAP-SuperAdmin ..................... done
     STEP 8: Get List of all disabled user in Group LDAP-Disabled ......... done
     STEP 9: Remove active user, add inactive user ........................ done
     STEP 10: Replace Members of Group LDAP-Disabled ...................... done
     STEP 11: Replace Members of Group LDAP-SuperAdmin (2. Time) .......... done
     Logout Zabbix API .................................................... done
+
 If there is an error with Login to LDAP or Zabbix an Error Message will be displayed. Check Output for more.
 ## Advanced Debugging
 Try

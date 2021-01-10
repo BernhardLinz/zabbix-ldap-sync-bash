@@ -1,8 +1,8 @@
 #!/bin/bash
 #############################################################################################################
 # Script Name ...: zabbix-ldap-sync.sh
-# Version .......: V1.1c
-# Date ..........: 06.08.2020
+# Version .......: V1.3
+# Date ..........: 10.01.2021
 # Description....: Synchronise Members of a Actice Directory Group with Zabbix via API
 #                  User wich are removed will be deactivated
 # Args ..........: 
@@ -11,7 +11,7 @@
 # Email Private  : Bernhard@znil.de
 #############################################################################################################
 # Variables
-Script_Version="V1.1c (2020-08-06)"
+Script_Version="V1.2 (2021-01-10)"
 # Colors for printf and echo
 DEFAULT_FOREGROUND=39
 RED=31
@@ -116,6 +116,64 @@ Translate_ldapsearch_exitcode () {
     echo " (for more details: https://ldapwiki.com/wiki/LDAP%20Result%20Codes)"
 }
 # Translate_ldapsearch_exitcode ### END Function #####################################################################
+# CompareVersionNumbers ### START Function #####################################################################
+# Source: https://stackoverflow.com/questions/4023830/how-to-compare-two-strings-in-dot-separated-version-format-in-bash
+CompareVersionNumbers () {
+    if [[ $1 == $2 ]]
+    then
+        return 0
+    fi
+    local IFS=.
+    local i ver1=($1) ver2=($2)
+    # fill empty fields in ver1 with zeros
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++))
+    do
+        ver1[i]=0
+    done
+    for ((i=0; i<${#ver1[@]}; i++))
+    do
+        if [[ -z ${ver2[i]} ]]
+        then
+            # fill empty fields in ver2 with zeros
+            ver2[i]=0
+        fi
+        if ((10#${ver1[i]} > 10#${ver2[i]}))
+        then
+            return 1
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]}))
+        then
+            return 2
+        fi
+    done
+    return 0
+}
+# VersionNumbers ### END Function #####################################################################
+# TestVersionNumbers ### START Function #####################################################################
+# Source: https://stackoverflow.com/questions/4023830/how-to-compare-two-strings-in-dot-separated-version-format-in-bash
+# TestVersionNumbers ### END Function #####################################################################
+TestVersionNumbers () {
+    CompareVersionNumbers $1 $2
+    case $? in
+        0) op='=';;
+        1) op='>';;
+        2) op='<';;
+    esac
+    if [[ $op != $3 ]]
+    then
+        if [ "$b_verbose" = "true" ]; then
+            echo "CompareVersionNumbers: '$1' is higher than '$2'"
+        fi
+        # 1 = false
+        return 1
+    else
+        if [ "$b_verbose" = "true" ]; then
+            echo "CompareVersionNumbers: '$1' is lower than '$2'"
+        fi
+        # 0 = true
+        return 0
+    fi
+}
 # Zabbix_Logout ### START Function #####################################################################
 Zabbix_Logout () {
     Print_Status_Text "Logout Zabbix API"
@@ -133,7 +191,9 @@ Zabbix_Logout () {
     Print_Status_Done "done" $GREEN
     b_Zabbix_is_logged_in="false"
 }
-# Zabbix_Logout ### START Function ##################################################################################################################################################################################
+# Zabbix_Logout ### END Function #####################################################################
+
+##################################################################################################################################################################################
 #   _____ _             _               
 #  / ____| |           | |              
 # | (___ | |_ __ _ _ __| |_ _   _ _ __  
@@ -183,7 +243,14 @@ done
 if [ "$b_Unknown_Parameter" = "true" ]; then
     # ToDo: Create Help text
     echo "Parameter error - print help"
-    echo "In Future here will be some helping text"
+    echo
+    echo " Allowed Parameter are:"
+    echo "  -c | -C | --config			use a specific configuration file instead config.sh"
+    echo "  -v | -V | --verbose 		Display debugging information, include all commands"
+    echo "  -p | -P | --ShowPassword	Show the passwords in the verbose output"
+    echo "  -s | -S | --silent			Hide all Output except errors. Usefull with crontab"
+    echo
+    echo "HowTo and Manual: https://github.com/BernhardLinz/zabbix-ldap-sync-bash"
     exit 1
 fi
 #############################################################################################################
@@ -563,6 +630,47 @@ fi
 
 
 
+##########################################################################################################################
+#   _____ _               _      ______     _     _     _                 _____ _____  __      __           _             
+#  / ____| |             | |    |___  /    | |   | |   (_)          /\   |  __ \_   _| \ \    / /          (_)            
+# | |    | |__   ___  ___| | __    / / __ _| |__ | |__  ___  __    /  \  | |__) || |    \ \  / /__ _ __ ___ _  ___  _ __  
+# | |    | '_ \ / _ \/ __| |/ /   / / / _` | '_ \| '_ \| \ \/ /   / /\ \ |  ___/ | |     \ \/ / _ \ '__/ __| |/ _ \| '_ \ 
+# | |____| | | |  __/ (__|   <   / /_| (_| | |_) | |_) | |>  <   / ____ \| |    _| |_     \  /  __/ |  \__ \ | (_) | | | |
+#  \_____|_| |_|\___|\___|_|\_\ /_____\__,_|_.__/|_.__/|_/_/\_\ /_/    \_\_|   |_____|     \/ \___|_|  |___/_|\___/|_| |_|
+#                                                                                                                         
+##########################################################################################################################
+# There are breaking changes at the Zabbix API since Version 5.2 or higher, so we have to check the version
+Print_Status_Text "Check Zabbix API Version"
+if [ "$b_verbose" = "true" ]; then 
+    Print_Status_Done "checking" $LIGHTCYAN
+    printf 'curl -k -s -X POST -H "Content-Type:application/json" -d '
+    printf "'"
+    printf '{"jsonrpc": "2.0","method":"apiinfo.version","params":[],"id":42}'
+    printf "'"
+    echo " $ZABBIX_API_URL"
+fi
+myAPIVersion=$(curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc": "2.0","method":"apiinfo.version","params":[],"id":42}' $ZABBIX_API_URL | cut -d'"' -f8)
+if [ "$b_verbose" = "true" ]; then echo "Zabbix Server Version: $myAPIVersion"; fi
+TestVersionNumbers "$myAPIVersion" "5.0.999" "<"
+if [ "$?" = "1" ]; then
+    if [ "$b_verbose" = "true" ]; then
+        echo "Zabbix API Version is higher than 5.0.x - using User-RoleId-Mode"
+    fi
+    s_UserMode="roleid"
+else
+    if [ "$b_verbose" = "true" ]; then
+        echo "Zabbix API Version is 5.0.x or lower - using User-Type-Mode"
+    fi
+    s_UserMode="type"
+fi
+if [ "$b_verbose" = "true" ]; then
+    Print_Status_Text "Check Zabbix API Version"
+fi
+Print_Status_Done "done" $GREEN
+Print_Status_Text "Using User mode"
+Print_Status_Done "$s_UserMode" $LIGHTGREEN
+
+
 #############################################################################################################
 #  ______     _     _     _        _                 _       
 # |___  /    | |   | |   (_)      | |               (_)      
@@ -602,7 +710,6 @@ if [ "$b_verbose" = "true" ]; then
     Print_Status_Text "Login at Zabbix API"
 fi
 Print_Status_Done "done" $GREEN
-
 #############################################################################################################
 #   ____                          ______     _     _     _         _____                       
 #  / __ \                        |___  /    | |   | |   (_)       / ____|                      
@@ -965,82 +1072,82 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
                             if [ "$b_verbose" = "true" ]; then
                                 printf 'curl -k -s -X POST -H "Content-Type:application/json" -d '
                                 printf "'"
-                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
                                 printf "'"
                                 echo $ZABBIX_API_URL
                             fi
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "OOX")  # Email, but no Surname or Givenname
                             if [ "$b_verbose" = "true" ]; then
                                 printf 'curl -k -s -X POST -H "Content-Type:application/json" -d '
                                 printf "'"
-                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
                                 printf "'"
                                 echo $ZABBIX_API_URL
                             fi
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             
                             ;;
                     "OXO")  # Givenname, but no Surname or Email
                             if [ "$b_verbose" = "true" ]; then
                                 printf 'curl -k -s -X POST -H "Content-Type:application/json" -d '
                                 printf "'"
-                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
                                 printf "'"
                                 echo $ZABBIX_API_URL
                             fi
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "OXX")  # Givenname and Email, no Surname
                             if [ "$b_verbose" = "true" ]; then
                                 printf 'curl -k -s -X POST -H "Content-Type:application/json" -d '
                                 printf "'"
-                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
                                 printf "'"
                                 echo $ZABBIX_API_URL
                             fi
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"name":'"$tempNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "XOO")  # Surname, but no Givenname or Email
                             if [ "$b_verbose" = "true" ]; then
                                 printf 'curl -k -s -X POST -H "Content-Type:application/json" -d '
                                 printf "'"
-                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
                                 printf "'"
                                 echo $ZABBIX_API_URL
                             fi
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "XOX")  # Surname and Email, but no Givenname
                             if [ "$b_verbose" = "true" ]; then
                                 printf 'curl -k -s -X POST -H "Content-Type:application/json" -d '
                                 printf "'"
-                                printf '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+                                printf '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
                                 printf "'"
                                 echo $ZABBIX_API_URL
                             fi
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "XXO")  # Surname and Givenname, but no Email
                             if [ "$b_verbose" = "true" ]; then
                                 printf 'curl -k -s -X POST -H "Content-Type:application/json" -d '
                                 printf "'"
-                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+                                printf '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
                                 printf "'"
                                 echo $ZABBIX_API_URL
                             fi
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc":"2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                     "XXX")  # Surname, Givenname and Email
                             if [ "$b_verbose" = "true" ]; then
                                 printf 'curl -k -s -X POST -H "Content-Type:application/json" -d '
                                 printf "'"
-                                printf '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+                                printf '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
                                 printf "'"
                                 echo $ZABBIX_API_URL
                             fi
-                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"type":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+                            tempvar=`curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.create","params":{"alias":'"$tempSAM"',"name":'"$tempNAME"',"surname":'"$tempSURNAME"',"user_medias":[{"mediatypeid": "'$ZABBIX_MediaTypeID'","sendto":['"$tempEmail"']}],"usrgrps":[{"usrgrpid":"'$ZABBIX_LDAP_Group_UsrGrpId'"}],"'$s_UserMode'":'$ZABBIX_UserType_User'},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
                             ;;
                 esac
                 if [ "$b_verbose" = "true" ]; then echo "$tempvar"; fi

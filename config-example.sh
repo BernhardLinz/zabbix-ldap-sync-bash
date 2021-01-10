@@ -43,19 +43,47 @@ ZABBIX_API_URL="http://localhost/api_jsonrpc.php"
 ZABBIX_API_User="zabbixapiuser"
 ZABBIX_API_Password="strongpassword73#"
 
-# Zabbix User type for new created Users:
-# 1 - (default) Zabbix user;
+# Zabbix User type (up to Zabbix Version 5.0.x) oder RoleId (from Version 5.2.x) for new created Users.
+# up to Zabbix 5.0.x there are 3 bultin Types, 1,2 or 3
+# from Zabbix 5.2.x there are User Rules. There are 3 predefined user roles which correspond to the pevious user types.
+# but you can define additional user roles in Zabbix and use here
+# 1 - Zabbix user;
 # 2 - Zabbix admin;
 # 3 - Zabbix super admin.
 ZABBIX_UserType_User=3
 
 # Zabbix Media Type Id
-# At new Installation:
+# At new Installation
 # 1 - Email
 # 2 - Jabber
 # 3 - SMS
-# Media Type Id can be different if you add own Types, Delete Default Types or If have an Installation witch used "nodes" (Zabbix 2.x) in the past and you have set the bode-Id
+# 4 - Email (HTML)
+# 5 - Mattermost
+# 6 - Opsgenie
+# 7 - PagerDuty
+# 8 - Pushover
+# 9 - Slack
+# 10 - Discord
+# 11 - SIGNL4
+# 12 - Jira
+# 13 - Jira with CustomFields
+# 14 - MS Teams
+# 15 - Redmine
+# 16 - Telegram
+# 17 - Zendesk
+# 18 - ServiceNow
+# 19 - Zammad
+# 20 - Jira ServiceDesk
+# 21 - OTRS
+# 22 - iLert
+# 23 - SolarWinds Service Desk
+# 24 - SysAid
+# 25 - TOPdesk
+# 26 - iTop
+
+# Media Type Id can be different if you added own Types, delete Default Types or if you have an installation witch used "nodes" (Zabbix 2.x) in the past and you have set the node-Id
 ZABBIX_MediaTypeID="1"
+
 #############################################################################################################
 #  ______           _          __   ______ _ _      
 # |  ____|         | |        / _| |  ____(_) |     
