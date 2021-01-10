@@ -23,7 +23,7 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
  - Check if LDAP or LDAPS will be used
  - Create a special User for the LDAP Access. User need no special rights but should be Domain-User
  - Avoid special chars in username and password like `äöü!?>$%` and spaces
- - After creating get the ***distinguished name*** of this user. You can query the name on a doamin controller with<br>
+ - After creating get the ***distinguished name*** of this user. You can query the name on a domain controller with<br>
 
 
 
@@ -106,7 +106,7 @@ Make the two `*.sh`scripts executeable:
 
 
 ### 7. Configure the Script
-The script `zabbix-ldap-sync.sh`is looking for the `config.sh`in the same folder.<br>
+The script `zabbix-ldap-sync.sh`is looking for the `config.sh`in the same folder (if no config-file is specified).<br>
 Just make a copy of the `config-example.sh` <br>
     
     cp config-example.sh config.sh
@@ -230,9 +230,11 @@ Test the sync in the shell with full paths like
      
      */10 * * * * /usr/lib/zabbix/zabbix-ldap-sync-bash/zabbix-ldap-sync.sh -c /usr/lib/zabbix/zabbix-ldap-sync-bash/zabbix-readonly.conf -s
  for syncing every 10 minutes
+Add a line to crontab for each group/configuration you want to sync
 
 ## Update the Script to latest Version
 Change to the Script folder and just type<br>
     
     git pull
 The `zabbix-ldap-sync.sh` and the ´config-example.sh´ maybe overwritten with the new versions.<br>
+Your existing files will not be touched or deleted.<br>
