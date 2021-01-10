@@ -4,7 +4,7 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
 **Changelog:**<br>
  - 2020-04-14   V1.1 => first public version 
  - 2020-04-17   V1.1a => Replace hard coded $2 with push-solution
- - 2020-05-05   V1.1b => add ldapsearch parameter '-o ldif-wrap=no' to prevent line breaks after 79 chars
+ - 2020-05-05   V1.1b => add ldapsearch parameter `-o ldif-wrap=no` to prevent line breaks after 79 chars
  - 2020-08-06   V1.1c => add more debbuging for -v when a new user is created (show the full curl command)
 <br>
 
@@ -46,7 +46,7 @@ I suggest Groups for
  - Zabbix Admin
  - Zabbix User
 <br>
-as needed. The users must be direct members, do not use nested groups.
+as needed. The users must be direct members, do not use nested groups.<br>
 In the examples i am using the groupname `Zabbix-Super-Admin`
  
 ### 2. Install Prerequisites on Linux
