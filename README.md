@@ -47,10 +47,13 @@ I suggest Groups for
  - Zabbix User
 <br>
 as needed. The users must be direct members, do not use nested groups.<br>
-In the examples i am using the groupname `Zabbix-Super-Admin`
- 
+
+In the examples i am using the groupname `Zabbix-Super-Admin`<br>
+
+
 ### 2. Install Prerequisites on Linux
-Yes, i am using pure bash to avoid any prerequisites but we need a program for accessing LDAP and some other tools. All of them should be available in the standard repositories:
+Yes, i am using pure bash to avoid any prerequisites but we need a program for accessing LDAP and some other tools. All of them should be available in the standard repositories:<br>
+
 **Debian/Ubuntu**
     
     apt install ldap-utils
@@ -77,7 +80,7 @@ At least 2 groups are required:<br>
 **Target Group for Users:**<br>
 This Group must have **Frontend access** `LDAP`<br>
 and should be enabled. 
-In the examples i am using the groupname`Zabbix-Super-Admin`<br>
+In the examples i am using the groupname `Zabbix-Super-Admin`<br>
 <br>
 **Target Group for Disabled Users:**<br>
 The build-in Group **Disabled** can be used.<br>
