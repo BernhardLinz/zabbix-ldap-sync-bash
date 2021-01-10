@@ -37,12 +37,15 @@ Output should something like
     CN=ldapSearch,OU=MyUsers,DC=exampledomain,DC=local
 
 where ***ldapSearch*** is the example-user
+<br>
+<br>
  
 Create one or more Active Directory Groups and add Members. Empty Groups are allowed (then all members in Zabbix will be removed from Group and disabled).
 I suggest Groups for
  - Zabbix Super Admin
  - Zabbix Admin
  - Zabbix User
+<br>
 as needed. The users must be direct members, do not use nested groups.
 In the examples i am using the groupname `Zabbix-Super-Admin`
  
