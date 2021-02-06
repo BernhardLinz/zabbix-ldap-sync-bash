@@ -1294,7 +1294,8 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
     fi
     tempvar=""
     # maybe the list is empty! So we have to check
-    if [ "$list_of_userids" != "" ]; then list_of_userids=${list_of_userids::-1}; fi
+    # if [ "$list_of_userids" != "" ]; then list_of_userids=${list_of_userids::-1}; fi
+    list_of_userids=""
     for (( i=0; i < ${#new_ZABBIX_ARRAY_disabled_User_userid[*]}; i++ )); do
         list_of_userids+='"'${new_ZABBIX_ARRAY_disabled_User_userid[$i]}'"'
         list_of_userids+=","
