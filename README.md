@@ -7,6 +7,7 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
  - 2020-05-05 **V1.1b** => add ldapsearch parameter `-o ldif-wrap=no` to prevent line breaks after 79 chars
  - 2020-08-06 **V1.1c** => add more debbuging for -v when a new user is created (show the full curl command)
  - 2021-01-10 **V1.2** => add support for Zabbix 5.2 or higher (breaking changes in API) with API-Version check bultin
+ - 2021-02-06 **v1.3.1** => fixed error when user moved to disabled group
 <br>
 
 ## Features
@@ -20,6 +21,7 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
    - from Zabbix 5.2.x using the User Role (roleid)
  - Disable users in Zabbix which are removed from Group
  - user- or group names with spaces are no problem
+ - verbose mode for debugging including curl commands
 
 ## How to Use
 ### 1. Prepare Active Directory
