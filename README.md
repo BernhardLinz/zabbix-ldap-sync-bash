@@ -8,13 +8,14 @@ This is a pure bash-script for syncing a Actice-Directory Group via LDAP with a 
  - 2020-08-06 **V1.1c** => add more debbuging for -v when a new user is created (show the full curl command)
  - 2021-01-10 **V1.2** => add support for Zabbix 5.2 or higher (breaking changes in API) with API-Version check bultin
  - 2021-02-06 **v1.3.1** => fixed error when user moved to disabled group
+ - 2022-03-24 **v1.3.2** => fixed alias vs username for Zabbix 6.0
 <br>
 
 ## Features
  - Pure Bash Skript for Linux
  - LDAP and LDAPS Support (ignoring SSL possible)
  - Zabbix API via http / https (ignoring SLL per default)
- - Zabbix 3.x, 4.x and 5.x tested (new User Roles since Version 5.2 are supported)
+ - Zabbix 3.x, 4.x, 5.x and 6.0 tested (new User Roles since Version 5.2 are supported, username instead of alias since 6.0)
  - Multiple config-files possible for multiple groups and multiple domains
  - Create needed users in Zabbix including Email-Address as media
    - up to Zabbix 5.0.x as User, Admin or SuperAdmin

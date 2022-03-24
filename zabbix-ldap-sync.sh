@@ -1,8 +1,8 @@
 #!/bin/bash
 #############################################################################################################
 # Script Name ...: zabbix-ldap-sync.sh
-# Version .......: V1.3.1
-# Date ..........: 06.02.2021
+# Version .......: V1.3.2
+# Date ..........: 24.03.2022
 # Description....: Synchronise Members of a Actice Directory Group with Zabbix via API
 #                  User wich are removed will be deactivated
 # Args ..........: 
@@ -11,7 +11,7 @@
 # Email Private  : Bernhard@znil.de
 #############################################################################################################
 # Variables
-Script_Version="V1.3.1 (2021-02-06)"
+Script_Version="V1.3.2 (2022-03-24)"
 # Colors for printf and echo
 DEFAULT_FOREGROUND=39
 RED=31
@@ -813,7 +813,7 @@ for (( i=0; i < ${#ZABBIX_ARRAY_LDAP_GroupMember_RAW[*]}; i++ )); do
         Print_Verbose_Text "Found UserId" "${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}"
         #printf "."
     fi
-    if [ "${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}" = "alias" ]; then
+    if [ "${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}" = "alias" ] || [ "${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}" = "username" ]; then
         i=$(($i + 2))
         ZABBIX_ARRAY_LDAP_GroupMember_alias+=("${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}")
         Print_Verbose_Text "Found Alias" "${ZABBIX_ARRAY_LDAP_GroupMember_RAW[$i]}"
@@ -948,7 +948,7 @@ if [ "$b_Must_Sync_Users" = "true" ]; then
             i=$(($i + 2))
             ZABBIX_ARRAY_AllUser_userid+=("${ZABBIX_ARRAY_AllUser_RAW[$i]}")
         fi
-        if [ "${ZABBIX_ARRAY_AllUser_RAW[$i]}" = "alias" ]; then
+        if [ "${ZABBIX_ARRAY_AllUser_RAW[$i]}" = "alias" ] || [ "${ZABBIX_ARRAY_AllUser_RAW[$i]}" = "username" ]; then
             i=$(($i + 2))
             ZABBIX_ARRAY_AllUser_alias+=("${ZABBIX_ARRAY_AllUser_RAW[$i]}")
         fi
