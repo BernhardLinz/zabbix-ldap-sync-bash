@@ -734,17 +734,17 @@ if [ "$b_verbose" = "true" ]; then
 fi
 #############################################################################################################
 # Get UsrGrpIds
-Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Groupname_for_Sync'"'
+Print_Status_Text "determine UsrGrpID of $ZABBIX_Groupname_for_Sync"
 if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
 declare -a ZABBIX_ARRAY_usrgrpid_RAW
 if [ "$b_verbose" = "true" ]; then
     printf 'curl -k -s -X POST -H "Content-Type:application/json"  -d '
     printf "'"
-    printf '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'$ZABBIX_Groupname_for_Sync'"},"output":"extend","status":0},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
+    printf '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'"$ZABBIX_Groupname_for_Sync"'"},"output":"extend","status":0},"id":42,"auth":"'$ZABBIX_authentication_token'"}'
     printf "'"
     printf " $ZABBIX_API_URL"
 fi
-tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'$ZABBIX_Groupname_for_Sync'"},"output":"extend","status":0},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'"$ZABBIX_Groupname_for_Sync"'"},"output":"extend","status":0},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
 if [ "$b_verbose" = "true" ]; then echo $tempvar; fi
 # The answer is an JSON - we split by the " into an array and search for the wanted values
 IFS='"' # " is set as delimiter
@@ -760,12 +760,12 @@ for (( i=0; i < ${#ZABBIX_ARRAY_usrgrpid_RAW[*]}; i++ )); do
     fi
 done
 Print_Verbose_Text "$ZABBIX_Groupname_for_Sync" "$ZABBIX_LDAP_Group_UsrGrpId"
-if [ "$b_verbose" = "true" ]; then Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Groupname_for_Sync'"'; fi
+if [ "$b_verbose" = "true" ]; then Print_Status_Text "determine UsrGrpID of $ZABBIX_Groupname_for_Sync"; fi
 Print_Status_Done "done" $GREEN
 tempvar=""
-Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Disabled_User_Group'"'
+Print_Status_Text "determine UsrGrpID of $ZABBIX_Disabled_User_Group"
 if [ "$b_verbose" = "true" ]; then Print_Status_Done "checking" $LIGHTCYAN; fi
-tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'$ZABBIX_Disabled_User_Group'"},"output":"extend","status":1},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
+tempvar=`curl -k -s -X POST -H "Content-Type:application/json"  -d '{"jsonrpc":"2.0","method":"usergroup.get","params":{"filter":{"name":"'"$ZABBIX_Disabled_User_Group"'"},"output":"extend","status":1},"id":42,"auth":"'$ZABBIX_authentication_token'"}' $ZABBIX_API_URL`
 if [ "$b_verbose" = "true" ]; then echo $tempvar; fi
 IFS='"' # " is set as delimiter
 ZABBIX_ARRAY_usrgrpid_RAW=($tempvar)
@@ -778,7 +778,7 @@ for (( i=0; i < ${#ZABBIX_ARRAY_usrgrpid_RAW[*]}; i++ )); do
     fi
 done
 Print_Verbose_Text "$ZABBIX_Disabled_User_Group" "$ZABBIX_Disabled_Group_UsrGrpId"
-if [ "$b_verbose" = "true" ]; then Print_Status_Text 'determine UsrGrpID of "'$ZABBIX_Disabled_User_Group'"'; fi
+if [ "$b_verbose" = "true" ]; then Print_Status_Text "determine UsrGrpID of $ZABBIX_Disabled_User_Group"; fi
 Print_Status_Done "done" $GREEN
 tempvar=""
 unset ZABBIX_ARRAY_usrgrpid_RAW
