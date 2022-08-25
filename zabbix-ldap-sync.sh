@@ -431,7 +431,7 @@ if [ LDAP_Ignore_SSL_Certificate = "false" ]; then
     # normal ldapsearch call
     if [ "$b_verbose" = "true" ]; then
         if [ "$b_showpasswords" = "true" ]; then
-            echo 'ldapsearch -x -o ldif-wrap=no -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "${LDAP_member_search_filter"}'
+            echo 'ldapsearch -x -o ldif-wrap=no -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "${LDAP_member_search_filter}"'
         else
             echo 'ldapsearch -x -o ldif-wrap=no -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "***********" -b "'$LDAP_SearchBase'" "${LDAP_member_search_filter}"'
         fi
