@@ -431,30 +431,30 @@ if [ LDAP_Ignore_SSL_Certificate = "false" ]; then
     # normal ldapsearch call
     if [ "$b_verbose" = "true" ]; then
         if [ "$b_showpasswords" = "true" ]; then
-            echo 'ldapsearch -x -o ldif-wrap=no -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" ${LDAP_member_search_filter}'
+            echo 'ldapsearch -x -o ldif-wrap=no -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "${LDAP_member_search_filter"}'
         else
-            echo 'ldapsearch -x -o ldif-wrap=no -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "***********" -b "'$LDAP_SearchBase'" ${LDAP_member_search_filter}'
+            echo 'ldapsearch -x -o ldif-wrap=no -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "***********" -b "'$LDAP_SearchBase'" "${LDAP_member_search_filter}"'
         fi
     fi
     # yes, ldapsearch is called twice - first time without grep to catch the exitcode, 2. time to catch the content
-    tempvar=`ldapsearch -x -o ldif-wrap=no -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" ${LDAP_member_search_filter} o member`
+    tempvar=`ldapsearch -x -o ldif-wrap=no -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "${LDAP_member_search_filter}" o member`
     ldapsearch_exitcode="$?"
     if [ "$b_verbose" = "true" ]; then echo "ldapsearch_exitcode: $ldapsearch_exitcode"; fi
-    tempvar=`ldapsearch -x -o ldif-wrap=no -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" ${LDAP_member_search_filter} o member | grep member:`
+    tempvar=`ldapsearch -x -o ldif-wrap=no -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "${LDAP_member_search_filter}" o member | grep member:`
 else
     # ignore SSL ldapsearch
     if [ "$b_verbose" = "true" ]; then
         if [ "$b_showpasswords" = "true" ]; then
-            echo 'LDAPTLS_REQCERT=never ldapsearch -x -o ldif-wrap=no -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" ${LDAP_member_search_filter} o member'
+            echo 'LDAPTLS_REQCERT=never ldapsearch -x -o ldif-wrap=no -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "'$LDAP_Bind_User_Password'" -b "'$LDAP_SearchBase'" "${LDAP_member_search_filter}" o member'
         else
-            echo 'LDAPTLS_REQCERT=never ldapsearch -x -o ldif-wrap=no -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "***********" -b "'$LDAP_SearchBase'" ${LDAP_member_search_filter} o member'
+            echo 'LDAPTLS_REQCERT=never ldapsearch -x -o ldif-wrap=no -H '$LDAP_Source_URL' -D "'$LDAP_Bind_User_DN'" -w "***********" -b "'$LDAP_SearchBase'" "${LDAP_member_search_filter}" o member'
         fi
     fi
     # yes, ldapsearch is called twice - first time without grep to catch the exitcode, 2. time to catch the content
-    tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -o ldif-wrap=no -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" ${LDAP_member_search_filter} o member`
+    tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -o ldif-wrap=no -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "${LDAP_member_search_filter}" o member`
     ldapsearch_exitcode="$?"
     if [ "$b_verbose" = "true" ]; then echo "ldapsearch_exitcode: $ldapsearch_exitcode"; fi
-    tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -o ldif-wrap=no -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" ${LDAP_member_search_filter} o member | grep member:`
+    tempvar=`LDAPTLS_REQCERT=never ldapsearch -x -o ldif-wrap=no -H $LDAP_Source_URL -D "$LDAP_Bind_User_DN" -w "$LDAP_Bind_User_Password" -b "$LDAP_SearchBase" "${LDAP_member_search_filter}" o member | grep member:`
 fi
 if [ "$b_verbose" = "true" ]; then 
     echo 'Result ldapsearch (with "grep member:" : '"$tempvar"
