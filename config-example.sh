@@ -31,6 +31,8 @@ LDAP_SearchBase="DC=exampledomain,DC=local"
 # Name of Groups in LDAP (Active-Directory) and in Zabbix for Sync with Zabbix
 LDAP_Groupname_for_Sync="Zabbix-Super-Admin"
 ZABBIX_Groupname_for_Sync="LDAP-SuperAdmin"
+# When nested groups are enabled LDAP_Groupname_for_Sync must be provided with full path to group. e.g. CN=group,OU=Groups,DC=example,DC=com
+AD_nested_groups=0
 
 # When you remove an user from the LDAP-Group, the user will moved in this group which is "Not enabled" = Disabled and Frontend access is "disabled"
 ZABBIX_Disabled_User_Group="LDAP-Disabled"
