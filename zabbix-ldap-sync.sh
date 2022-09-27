@@ -457,8 +457,12 @@ if [ "$ldapsearch_exitcode" -eq 0 ];then
     LDAP_ARRAY_Members_RAW=($tempvar) # Split the raw output into an array
     LDAP_ARRAY_Members_DN=()
     for (( i=0; i < ${#LDAP_ARRAY_Members_RAW[*]}; i++ )); do
+        # Double colon means base64 encoded data: https://www.ietf.org/rfc/rfc2849.txt
+        if [ "${LDAP_ARRAY_Members_RAW[$i]:0:8}" = "member::" ]; then
+            i=$(($i + 1))
+            LDAP_ARRAY_Members_DN+=("`echo ${LDAP_ARRAY_Members_RAW[$i]} | base64 -d`") # add new Item to the end of the array
         # Search for the word "member:" in Array - the next value is the DN of a Member
-        if [ "${LDAP_ARRAY_Members_RAW[$i]:0:7}" = "member:" ]; then
+        elif [ "${LDAP_ARRAY_Members_RAW[$i]:0:7}" = "member:" ]; then
             i=$(($i + 1))
             LDAP_ARRAY_Members_DN+=("${LDAP_ARRAY_Members_RAW[$i]}") # add new Item to the end of the array
         else
