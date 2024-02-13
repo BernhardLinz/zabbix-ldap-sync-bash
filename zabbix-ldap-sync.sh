@@ -695,7 +695,21 @@ if [ "$b_verbose" = "true" ]; then
     printf "'"
     echo " $ZABBIX_API_URL"
 fi
-ZABBIX_authentication_token=$(curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.login","params":{"user":"'$ZABBIX_API_User'","password":"'$ZABBIX_API_Password'"},"id":42}' $ZABBIX_API_URL | cut -d'"' -f8)
+auth_payload=$(cat << EOF
+{
+    "jsonrpc": "2.0",
+    "method": "user.login",
+    "params": {
+        "user": "$ZABBIX_API_User",
+        "password": "$ZABBIX_API_Password"
+    },
+    "id": 1,
+    "auth": null
+}
+EOF
+)
+ZABBIX_authentication_token=$(curl -s -X POST -H "Content-Type: application/json-rpc" -d "$auth_payload" $ZABBIX_API_URL | cut -d'"' -f8)
+#ZABBIX_authentication_token=$(curl -k -s -X POST -H "Content-Type:application/json" -d '{"jsonrpc": "2.0","method":"user.login","params":{"user":"'$ZABBIX_API_User'","password":"'$ZABBIX_API_Password'"},"id":42}' $ZABBIX_API_URL | cut -d'"' -f8)
 Print_Verbose_Text "Authentification token" "$ZABBIX_authentication_token"
 if [ "${#ZABBIX_authentication_token}" -ne 32 ]; then
     # Token must have 32 Chars - something went wrong
